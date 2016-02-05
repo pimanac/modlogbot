@@ -1,0 +1,22 @@
+{
+  "database": {
+    "host": "localhost",
+    "user": "foo",
+    "password": "bar"
+  },
+  "reddit": {
+    "root":"http://www.reddit.com",
+    "max_requests": 100,
+    "sleep_minutes":600,
+    "key": "wwwwwwww",
+    "secret": "xxxxxxxx",
+    "access_token": "yyyyyyyy",
+    "refresh_token": "zzzzzzzz",
+    "subreddit": "example"
+  },
+  "slack": {
+    "webhook_token":"aaaaaaaaaaa",
+    "bot_token":"bbbbbbbbbbbbb",
+    "channel":"ccccccccc"
+  }
+}
