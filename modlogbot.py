@@ -113,7 +113,7 @@ class bot(object):
        db.close()
        return data
 
-    def get_getuserstats(self,user,all=False):
+    def get_userstats(self,user,all=False):
        result = ""
        db = mysql.connector.connect(user=self.config['database']['user'],
                                     password=self.config['database']['password'],
@@ -141,6 +141,7 @@ class bot(object):
            attachment['text'] = 'This user has no items in the modlog.'
            data['attachments'].append(attachment)
        else:
+           text += '```'
            for item in rs:
                action = item[0]
                cnt = item[1]
@@ -149,11 +150,7 @@ class bot(object):
                if len(action) < 20:
                    action = action + ' '*(20-len(action))
 
-               if len(cnt) < 8:
-                   cnt =  cnt + ' '*(8-len(cnt))
-
-               text += '```'
-               text += action + ' : ' + cnt + '\n'
+               text += action + ' : ' + str(cnt) + '\n'
 
            # for
            text += '```'
@@ -163,6 +160,72 @@ class bot(object):
        db.close()
        return data
 
+    def get_top(self):
+       result = ""
+       db = mysql.connector.connect(user=self.config['database']['user'],
+                                    password=self.config['database']['password'],
+                                    database=self.config['database']['dbname'])
+
+       cursor = db.cursor()
+
+       query = ("SELECT target_author, COUNT(*) AS cnt, action FROM modlog WHERE created >= DATE_SUB(created,INTERVAL 6 MONTH) AND "
+                "action != '' AND target_author != '' and action != 'distinguished' AND action != 'approvelink' AND action != 'approvecomment' "
+                "AND action != 'editflair' AND action != 'distinguish'  GROUP BY target_author,action   HAVING cnt > 50 ORDER BY `cnt`  DESC;")
+
+
+       cursor.execute(query)
+       rs = cursor.fetchall()
+
+       # build the message record
+       data = {}
+       data['token'] = self.config['slack']['webhook_token']
+       data['channel'] = self.config['slack']['channel']
+
+       text = '*Removal counts over 100* (6 Months)\n'
+
+       if cursor.rowcount == 0:
+           attachment = {}
+           attachment['fallback'] = 'This user has no items in the modlog.'
+           attachment['color'] = 'good'
+           attachment['text'] = 'This user has no items in the modlog.'
+           data['attachments'].append(attachment)
+       else:
+           text += '```'
+           for item in rs:
+               target_author = item[0]
+               cnt = item[1]
+
+               # a futile attempt at making columns.  fix later
+               if len(target_author) < 35:
+                   target_author = target_author + ' '*(35-len(target_author))
+
+               text += target_author + ' : ' + str(cnt) + '\n'
+
+           # for
+           text += '```'
+           data['text'] = text
+       # end if
+       cursor.close()
+       db.close()
+       return data
+
+    def get_help(self):
+
+        # build the message record
+        data = {}
+        data['token'] = self.config['slack']['webhook_token']
+        data['channel'] = self.config['slack']['channel']
+
+        text = '*modlogbot help*\n```'
+
+        text += '~userlog username    : show mod log history for this user\n\n'
+        text += '~userstats username  : show number of actions in the past 6 months\n\n'
+        text += '                       includes all actions\n\n'
+        text += '~top                 : show people with over 50 actions in 6 months\n\n'
+        text += '```'
+
+        data['text'] = text
+        return data
 
 class handler(BaseHTTPRequestHandler):
     def __config__(self):
@@ -194,8 +257,17 @@ class handler(BaseHTTPRequestHandler):
             self.end_headers()
 
             modlogbot = bot()
-            message = modlogbot.get_userlog(username,doAll)
 
+            if 'userlog' in args[0]:
+                message = modlogbot.get_userlog(username,doAll)
+            elif 'userstats' in args[0]:
+                message = modlogbot.get_userstats(username,doAll)
+            elif 'top' in args[0]:
+                message = modlogbot.get_top()
+            else:
+                message = modlogbot.get_help()
+
+                
             self.wfile.write(bytes(json.dumps(message),"utf8"))
             return
         else:
