@@ -176,7 +176,7 @@ class bot(object):
                database=self.config['database']['dbname'])
 
         cursor = db.cursor()
-         
+
         query = ("SELECT action, moderator, created FROM `modlog` WHERE target_permalink = %s ORDER BY created DESC;")
 
 
@@ -314,7 +314,7 @@ class handler(BaseHTTPRequestHandler):
             username = args[1]
             print('Fetching ' + username)
 
-        if str(postvars['token'][0]) == self.config['slack']['webhook_token']:
+        if str(postvars['token'][0]) in self.config['slack']['webhook_token']:
             self.send_response(200)
             self.send_header('Content-type','application/json')
 

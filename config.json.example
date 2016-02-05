@@ -15,7 +15,7 @@
     "subreddit": "example"
   },
   "slack": {
-    "webhook_token":"aaaaaaaaaaa",
+    "webhook_token": ["444444444444","33333333333"],
     "bot_token":"bbbbbbbbbbbbb",
     "channel":"ccccccccc"
   }
