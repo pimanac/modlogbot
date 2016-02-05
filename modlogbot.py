@@ -29,7 +29,7 @@ class bot(object):
        db = mysql.connector.connect(user=self.config['database']['user'],
                                     password=self.config['database']['password'],
                                     database=self.config['database']['dbname'])
-       
+
        cursor = db.cursor()
 
        if all ==True:
@@ -108,6 +108,56 @@ class bot(object):
 
                attachment['fields'].append(field2)
           # for
+       # end if
+       cursor.close()
+       db.close()
+       return data
+
+    def get_getuserstats(self,user,all=False):
+       result = ""
+       db = mysql.connector.connect(user=self.config['database']['user'],
+                                    password=self.config['database']['password'],
+                                    database=self.config['database']['dbname'])
+
+       cursor = db.cursor()
+
+       query = ("SELECT action, COUNT(*) as 'c' FROM modlog WHERE target_author = %s AND created >= DATE_SUB(created,INTERVAL 6 MONTH) GROUP BY action ORDER BY c DESC;")
+
+
+       cursor.execute(query,(user, ))
+       rs = cursor.fetchall()
+
+       # build the message record
+       data = {}
+       data['token'] = self.config['slack']['webhook_token']
+       data['channel'] = self.config['slack']['channel']
+
+       text = '*User stats for ' + user + '* (6 Months)'
+
+       if cursor.rowcount == 0:
+           attachment = {}
+           attachment['fallback'] = 'This user has no items in the modlog.'
+           attachment['color'] = 'good'
+           attachment['text'] = 'This user has no items in the modlog.'
+           data['attachments'].append(attachment)
+       else:
+           for item in rs:
+               action = item[0]
+               cnt = item[1]
+
+               # a futile attempt at making columns.  fix later
+               if len(action) < 20:
+                   action = action + ' '*(20-len(action))
+
+               if len(cnt) < 8:
+                   cnt =  cnt + ' '*(8-len(cnt))
+
+               text += '```'
+               text += action + ' : ' + cnt + '\n'
+
+           # for
+           text += '```'
+           data['text'] = text
        # end if
        cursor.close()
        db.close()
