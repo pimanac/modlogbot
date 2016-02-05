@@ -33,6 +33,35 @@ class bot(object):
        cursor = db.cursor()
 
        if all ==True:
+           query = ("SELECT action, COUNT(*) AS cnt FROM modlog "
+                    "WHERE target_author = %s AND created >= DATE_SUB(created,INTERVAL 6 MONTH) AND action != 'distinguished' AND action != 'editflair' AND action != 'distinguish' GROUP BY action ORDER BY cnt DESC;")
+       else:
+           query = ("SELECT action, COUNT(*) AS cnt FROM modlog "
+                    "WHERE target_author = %s AND created >= DATE_SUB(created,INTERVAL 6 MONTH) AND action != 'distinguished' AND action != 'approvelink' AND action != 'approvecomment' AND action != 'editflair' AND action != 'distinguish' GROUP BY action ORDER BY cnt DESC;")
+
+       cursor.execute(query,(user, ))
+
+       rs = cursor.fetchall()
+
+       actionlist = '```\n'
+       for item in rs:
+           action = item[0]
+           cnt = item[1]
+
+           if len(action) < 20:
+               action = action + ' '*(20-len(action))
+
+           actionlist += action + ' : ' + str(cnt) + '\n'
+       actionlist += '```'
+
+       if actionlist == '```\n```':
+           actionlist = ''
+
+       #cursor.close()
+
+       cursor = db.cursor()
+
+       if all == True:
            query = ("SELECT action, moderator, target_permalink,created FROM modlog "
                     "WHERE target_author = (%s) AND action != 'distinguished' AND action != 'editflair' AND action != 'distinguish' ORDER BY created DESC LIMIT 10;")
        else:
@@ -46,7 +75,7 @@ class bot(object):
        data = {}
        data['token'] = self.config['slack']['webhook_token']
        data['channel'] = self.config['slack']['channel']
-       data['text'] = '*User report for ' + user + '*'
+       data['text'] = '*User report for ' + user + '* (6 Month / last 10)\n' + actionlist
        data['attachments'] = []
 
        if cursor.rowcount == 0:
@@ -91,22 +120,16 @@ class bot(object):
                attachment['text'] = ''
                attachment['title'] = action
                attachment['title_link'] = link
-               # construct the raw message
-              # print(json.dumps(attachment))
-               data['attachments'].append(attachment)
                attachment['fields'] = []
 
                field = {}
-               field['title'] = 'Moderator'
-               field['value'] = safename
+               field['title'] = ''
+               field['value'] = safename + ' : ' + created
                field['short'] = True
                attachment['fields'].append(field)
 
-               field2 = {}
-               field2['title'] = 'Date'
-               field2['value'] = created
+               data['attachments'].append(attachment)
 
-               attachment['fields'].append(field2)
           # for
        # end if
        cursor.close()
