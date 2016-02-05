@@ -132,7 +132,7 @@ class bot(object):
        data['token'] = self.config['slack']['webhook_token']
        data['channel'] = self.config['slack']['channel']
 
-       text = '*User stats for ' + user + '* (6 Months)'
+       text = '*User stats for ' + user + '* (6 Months)\n'
 
        if cursor.rowcount == 0:
            attachment = {}
@@ -159,6 +159,69 @@ class bot(object):
        cursor.close()
        db.close()
        return data
+
+    def get_actions(self,permalink):
+        result = ""
+        reallink = permalink
+
+        if permalink[:5] == "https":
+            shortlink = permalink.replace('https://www.reddit.com','')
+        else:
+            shortlink = permalink.replace('http://www.reddit.com','')
+
+        shortlink = shortlink.replace('<','')
+        shortlink = shortlink.replace('>','')
+        db = mysql.connector.connect(user=self.config['database']['user'],
+               password=self.config['database']['password'],
+               database=self.config['database']['dbname'])
+
+        cursor = db.cursor()
+         
+        query = ("SELECT action, moderator, created FROM `modlog` WHERE target_permalink = %s ORDER BY created DESC;")
+
+
+        cursor.execute(query,(shortlink, ))
+        rs = cursor.fetchall()
+
+        # build the message record
+        data = {}
+        data['token'] = self.config['slack']['webhook_token']
+        data['channel'] = self.config['slack']['channel']
+        data['attachments'] = []
+        text = '' + reallink + '\n'
+
+
+
+        if cursor.rowcount == 0:
+            attachment = {}
+            attachment['fallback'] = 'there are no actions in the modlog for this item'
+            attachment['color'] = 'good'
+            attachment['text'] = 'There are no actions in the modlog for this item.'
+            data['attachments'].append(attachment)
+        else:
+            text += '```'
+            for item in rs:
+                action = item[0]
+                moderator = item[1]
+                created = item[2].strftime ("%Y-%m-%d %H:%M:%S")
+
+                # a futile attempt at making columns.  fix later
+                if len(action) < 18:
+                    action = action + ' '* (18-len(action))
+
+                if len(moderator) < 18:
+                    moderator = moderator + ' '*(18-len(moderator))
+
+                text += action + ':' + moderator + ': ' + created + '\n'
+
+            # for
+            text += '```'
+
+        data['text'] = text
+        # end if
+        cursor.close()
+        db.close()
+        return data
 
     def get_top(self):
        result = ""
@@ -222,6 +285,7 @@ class bot(object):
         text += '~userstats username  : show number of actions in the past 6 months\n\n'
         text += '                       includes all actions\n\n'
         text += '~top                 : show people with over 50 actions in 6 months\n\n'
+        text += '~actions link        : shows moderator actions for a given item\n\n'
         text += '```'
 
         data['text'] = text
@@ -264,10 +328,13 @@ class handler(BaseHTTPRequestHandler):
                 message = modlogbot.get_userstats(username,doAll)
             elif 'top' in args[0]:
                 message = modlogbot.get_top()
+            elif 'actions' in args[0]:
+                link = args[1]
+                message = modlogbot.get_actions(link)
             else:
                 message = modlogbot.get_help()
 
-                
+
             self.wfile.write(bytes(json.dumps(message),"utf8"))
             return
         else:
