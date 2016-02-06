@@ -34,9 +34,121 @@ class database():
                            scopes=scope_list)
 
         self.subreddit = self.r.get_subreddit(self.config['reddit']['subreddit'])
-
     def get_submission(self,link):
         return self.r.get_submission(REDDIT_ROOT + link)
+
+    def insert_comment(self,comment):
+        sql = (
+           "INSERT INTO comments (approved_by, archived, author, author_flair_css_class, author_flair_text, "
+           "                     banned_by, body, body_html, controversiality, created, created_utc, distinguished, "
+           "                     downs, edited, fetched, fullname, gilded, has_fetched, id, is_root, likes, link_author, "
+           "                     link_id, link_title, link_url, name, num_reports, over_18, parent_id, permalink, "
+           "                     quarantine, removal_reason, saved, score, score_hidden, stickied, subreddit_id, subreddit, "
+           "                     ups) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, "
+           "                     %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);" #39 fields
+        )
+
+        if comment.approved_by is not None:
+            approved_by = comment.approved_by.name
+        else:
+            approved_by = None
+
+        archived = comment.archived
+
+        author = comment.author.name
+        author_flair_css_class = comment.author_flair_css_class
+        author_flair_text = comment.author_flair_text
+        banned_by = comment.banned_by
+        body = comment.body
+        body_html = comment.body_html
+        controversiality = comment.controversiality
+        created = datetime.fromtimestamp(comment.created)
+        created_utc = datetime.fromtimestamp(comment.created_utc)
+        distinguished = comment.distinguished
+        downs = comment.downs
+        edited = comment.edited
+        fetched = ""
+        fullname = comment.fullname
+        gilded = comment.gilded
+        has_fetched = comment.has_fetched
+        rid = comment.id
+        is_root = comment.is_root
+        likes = comment.likes
+        link_author = comment.link_author
+        link_id = comment.link_id
+        link_title = comment.link_title
+        link_url = comment.link_url
+        name = comment.name
+        num_reports = comment.num_reports
+        over_18 = comment.over_18
+        parent_id = comment.parent_id
+        permalink = comment.permalink
+        quarantine = comment.quarantine
+        removal_reason = comment.removal_reason
+        saved = comment.saved
+        score = comment.score
+        score_hidden = comment.score_hidden
+        stickied = comment.stickied
+        subreddit_id = comment.subreddit_id
+        subreddit = comment.subreddit.name
+        ups = comment.ups
+
+        data = (
+            approved_by,
+            archived,
+            author,
+            author_flair_css_class,
+            author_flair_text,
+            banned_by,
+            body,
+            body_html,
+            controversiality,
+            created,
+            created_utc,
+            distinguished,
+            downs,
+            edited,
+            fetched,
+            fullname,
+            gilded,
+            has_fetched,
+            rid,
+            is_root,
+            likes,
+            link_author,
+            link_id,
+            link_title,
+            link_url,
+            name,
+            num_reports,
+            over_18,
+            parent_id,
+            permalink,
+            quarantine,
+            removal_reason,
+            saved,
+            score,
+            score_hidden,
+            stickied,
+            subreddit_id,
+            subreddit,
+            ups
+        )
+
+        #pprint(data)
+        try:
+            cursor = self.db.cursor()
+            cursor.execute(sql,data)
+            self.db.commit()
+            cursor.close()
+            print("\033[94m" + "inserted " + name + "\033[0m")
+        except mysql.connector.Error as err:
+            print (err)
+            if err.errno == 1062:
+                print("\033[92m" + "skipping " + name + "\033[0m")
+            else:
+                pass
+    # insert_comment
 
     def insert_modlog(self, entry):
         cursor = self.db.cursor()
@@ -183,16 +295,15 @@ class database():
                 pass
     # InsertSubmission
 
-
     def load_submissions(self):
         cursor = self.db.cursor(buffered=True)
 
-        sql = "SELECT target_permalink FROM politics WHERE action = 'removecomment';"
+        sql = "SELECT target_permalink FROM modlog WHERE action = 'approvelink' or action = 'removelink';"
 
         cursor.execute(sql)
 
         for target_permalink in cursor:
             print(target_permalink)
 
-            item = self.get_submission(self.REDDIT_ROOT + target_permalink)
+            item = self.get_submission(self.config['reddit']['root'] + target_permalink)
             self.insert_submission(item)
