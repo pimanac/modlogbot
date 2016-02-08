@@ -26,11 +26,11 @@ class bot(object):
 
     def get_modlog(self,interval):
         # did they specify an interval?
-        regex = re.search('([\d]+)([HhDdWwMmQq])')
+        regex = re.search('([\d]+)([HhDdWwMmQq])',interval)
 
         if regex is not None:
-            val = re.group(1)
-            interval = re.group(2)
+            val = int(regex.group(1))
+            interval = regex.group(2)
 
             if interval == "H" or interval == "h":
                 interval ="HOUR"
@@ -67,7 +67,7 @@ class bot(object):
         cursor = db.cursor()
 
 
-        query = ("SELECT moderator, count(*) AS cnt FROM `modlog` WHERE created >= DATE_SUB(NOW(), INTERVAL %s " + interval + ") ORDER BY created DESC;")
+        query = ("SELECT moderator, count(*) AS cnt FROM `modlog` WHERE created >= DATE_SUB(NOW(), INTERVAL %s " + interval + ") GROUP BY moderator ORDER BY cnt DESC;")
 
         cursor.execute(query,(val, ))
         rs = cursor.fetchall()
@@ -77,7 +77,7 @@ class bot(object):
         data['token'] = self.config['slack']['webhook_token']
         data['channel'] = self.config['slack']['channel']
         data['attachments'] = []
-        text = '*Modlog for the past ' + val + ' ' + interval.lower() + '(s)*'
+        text = '*Modlog for the past ' + str(val) + ' ' + interval.lower() + '(s)*'
 
 
         if cursor.rowcount == 0:
@@ -90,7 +90,7 @@ class bot(object):
             text += '```'
             for item in rs:
                 moderator = item[0]
-                cnt = item[1]
+                cnt = str(item[1])
 
                 # ping not, for it is annoying
                 safename =  u'{}\u200B{}'.format(moderator[0], moderator[1:])
@@ -101,7 +101,7 @@ class bot(object):
                 if len(cnt) < 18:
                     cnt = cnt + ' '*(18-len(cnt))
 
-                text += action + ':' + moderator + ': ' + created + '\n'
+                text += moderator + ': ' + cnt + '\n'
 
             # for
             text += '```'
