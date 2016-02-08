@@ -24,6 +24,95 @@ class bot(object):
         with open('config.json','r') as f:
             self.config = json.load(f);
 
+    def get_modlog(self,interval):
+        # did they specify an interval?
+        regex = re.search('([\d]+)([HhDdWwMmQq])')
+
+        if regex is not None:
+            val = re.group(1)
+            interval = re.group(2)
+
+            if interval == "H" or interval == "h":
+                interval ="HOUR"
+                if val > 8760:
+                    val = 8760
+            elif interval == "D" or interval == "d":
+                interval ="DAY"
+                if val > 365:
+                    val = 365
+            elif interval == "W" or interval == "w":
+                interval ="WEEK"
+                if val > 52:
+                    val = 52
+            elif interval == "M" or interval == "m":
+                interval ="MONTH"
+                if val > 12:
+                    val = 12
+            elif interval == "Q" or interval == "q":
+                interval ="QUARTER"
+                if val > 4:
+                    val = 4
+            else:
+                val = 24
+                interval = "HOUR"
+        else:
+            val = 24
+            internal = "HOUR"
+
+
+        db = mysql.connector.connect(user=self.config['database']['user'],
+               password=self.config['database']['password'],
+               database=self.config['database']['dbname'])
+
+        cursor = db.cursor()
+
+
+        query = ("SELECT moderator, count(*) AS cnt FROM `modlog` WHERE created >= DATE_SUB(NOW(), INTERVAL %s " + interval + ") ORDER BY created DESC;")
+
+        cursor.execute(query,(val, ))
+        rs = cursor.fetchall()
+
+        # build the message record
+        data = {}
+        data['token'] = self.config['slack']['webhook_token']
+        data['channel'] = self.config['slack']['channel']
+        data['attachments'] = []
+        text = '*Modlog for the past ' + val + ' ' + interval.lower() + '(s)*'
+
+
+        if cursor.rowcount == 0:
+            attachment = {}
+            attachment['fallback'] = '*Modlog for the past ' + val + ' ' + interval.lower() + '(s)*'
+            attachment['color'] = 'good'
+            attachment['text'] = 'There are no actions in the modlog for this item.'
+            data['attachments'].append(attachment)
+        else:
+            text += '```'
+            for item in rs:
+                moderator = item[0]
+                cnt = item[1]
+
+                # ping not, for it is annoying
+                safename =  u'{}\u200B{}'.format(moderator[0], moderator[1:])
+
+                if len(safename) < 20:
+                    safename = safename + ' '* (20-len(safename))
+
+                if len(cnt) < 18:
+                    cnt = cnt + ' '*(18-len(cnt))
+
+                text += action + ':' + moderator + ': ' + created + '\n'
+
+            # for
+            text += '```'
+
+        data['text'] = text
+        # end if
+        cursor.close()
+        db.close()
+        return data
+
+
     def get_userlog(self,user,all=False):
        result = ""
        db = mysql.connector.connect(user=self.config['database']['user'],
@@ -34,10 +123,10 @@ class bot(object):
 
        if all ==True:
            query = ("SELECT action, COUNT(*) AS cnt FROM modlog "
-                    "WHERE target_author = %s AND created >= DATE_SUB(created,INTERVAL 6 MONTH) AND action != 'distinguished' AND action != 'editflair' AND action != 'distinguish' GROUP BY action ORDER BY cnt DESC;")
+                    "WHERE target_author = %s AND created >= DATE_SUB(NOW(),INTERVAL 6 MONTH) AND action != 'distinguished' AND action != 'editflair' AND action != 'distinguish' GROUP BY action ORDER BY cnt DESC;")
        else:
            query = ("SELECT action, COUNT(*) AS cnt FROM modlog "
-                    "WHERE target_author = %s AND created >= DATE_SUB(created,INTERVAL 6 MONTH) AND action != 'distinguished' AND action != 'approvelink' AND action != 'approvecomment' AND action != 'editflair' AND action != 'distinguish' GROUP BY action ORDER BY cnt DESC;")
+                    "WHERE target_author = %s AND created >= DATE_SUB(NOW(),INTERVAL 6 MONTH) AND action != 'distinguished' AND action != 'approvelink' AND action != 'approvecomment' AND action != 'editflair' AND action != 'distinguish' GROUP BY action ORDER BY cnt DESC;")
 
        cursor.execute(query,(user, ))
 
@@ -188,7 +277,7 @@ class bot(object):
         reallink = permalink
         if permalink[:6] == "<https":
             shortlink = permalink.replace('https://www.reddit.com','')
-            permalink = permalink.replace('https','http',1) 
+            permalink = permalink.replace('https','http',1)
         else:
             shortlink = permalink.replace('http://www.reddit.com','')
 
@@ -304,6 +393,11 @@ class bot(object):
 
         text = '*modlogbot help*\n```'
 
+        text += '~modlog interval     : show modlog for a specified interval.  Number + \n\n'
+        text += '                        h = Hours, d = Days, w = Weeks, m = Months \n\n'
+        text += '                        q = Quarter\n\n'
+        text += '                         example: ~modlog 24h    or ~modlog 2w   \n\n'
+        text += ''
         text += '~userlog username    : show mod log history for this user\n\n'
         text += '~userstats username  : show number of actions in the past 6 months\n\n'
         text += '                       includes all actions\n\n'
@@ -354,6 +448,9 @@ class handler(BaseHTTPRequestHandler):
             elif 'actions' in args[0]:
                 link = args[1]
                 message = modlogbot.get_actions(link)
+            elif 'modlog' in args[0]:
+                interval = args[1]
+                message = modlogbot.get_modlog(interval)
             else:
                 message = modlogbot.get_help()
 
