@@ -186,9 +186,9 @@ class bot(object):
     def get_actions(self,permalink):
         result = ""
         reallink = permalink
-
-        if permalink[:5] == "https":
+        if permalink[:6] == "<https":
             shortlink = permalink.replace('https://www.reddit.com','')
+            permalink = permalink.replace('https','http',1) 
         else:
             shortlink = permalink.replace('http://www.reddit.com','')
 
