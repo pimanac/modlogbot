@@ -204,84 +204,181 @@ class database():
                 pass
 
     def insert_submission(self,submission):
+
+
+
+        '''
+         ('approved_by', None),
+         ('archived', False),
+         ('author', Redditor(user_name='FallenMan')),
+         ('author_flair_css_class', None),
+         ('author_flair_text', None),
+         ('banned_by', None),
+         ('clicked', False),
+         ('created', 1454817222.0),
+         ('created_utc', 1454788422.0),
+         ('distinguished', None),
+         ('domain', u'self.politics'),
+         ('downs', 0),
+         ('edited', 1454789059.0),
+         ('from', None),
+         ('from_id', None),
+         ('from_kind', None),
+         ('fullname', u't3_44ht76'),
+         ('gilded', 0),
+         ('has_fetched', True),
+         ('hidden', False),
+         ('hide_score', False),
+         ('id', u'44ht76'),
+         ('is_self', True),
+         ('json_dict', None),
+         ('likes', None),
+         ('link_flair_css_class', None),
+         ('link_flair_text', None),
+         ('locked', False),
+         ('name', u't3_44ht76'),
+         ('num_comments', 21),
+         ('num_reports', 0),
+         ('over_18', False),
+         ('permalink',
+          u'https://www.reddit.com/r/politics/comments/44ht76/third_way_democrats/'),
+         ('post_hint', u'self'),
+         ('quarantine', False),
+         ('removal_reason', None),
+         ('report_reasons', []),
+         ('saved', False),
+         ('score', 0),
+         ('secure_media', None),
+         ('secure_media_embed', {}),
+         ('selftext',
+          u"https://medium.com/@matthewstoller/its-al-froms-democratic-party-we-just-live-here-5d0de7f89c3e#.spy0lbive\n\nFor anyone interested in a historical explanation of what's been going on during these primaries.\n\nITT: People who did not read the post and responded to the title -___-"),
+         ('selftext_html',
+          u'<!-- SC_OFF --><div class="md"><p><a href="https://medium.com/@matthewstoller/its-al-froms-democratic-party-we-just-live-here-5d0de7f89c3e#.spy0lbive">https://medium.com/@matthewstoller/its-al-froms-democratic-party-we-just-live-here-5d0de7f89c3e#.spy0lbive</a></p>\n\n<p>For anyone interested in a historical explanation of what&#39;s been going on during these primaries.</p>\n\n<p>ITT: People who did not read the post and responded to the title -___-</p>\n</div><!-- SC_ON -->'),
+         ('short_link', u'http://redd.it/44ht76'),
+         ('stickied', False),
+         ('subreddit', Subreddit(subreddit_name='politics')),
+         ('subreddit_id', u't5_2cneq'),
+         ('suggested_sort', None),
+         ('thumbnail', u'self'),
+         ('title', u'Third Way Democrats'),
+         ('ups', 0),
+         ('url',
+          u'https://www.reddit.com/r/politics/comments/44ht76/third_way_democrats/'),
+         ('user_reports', []),
+         ('visited', False),
+        '''
         cursor = self.db.cursor()
 
         # 30 fields
         sql = (
-           "INSERT INTO submission (author,banned_by,created_utc,distinguished,"
-           "domain,downs,edited,rfrom,from_id,from_kind,gilded,hidden,hide_score,"
-           "id,is_self,link_flair_css_class,link_flair_text,locked,media,name,permalink,"
-           "post_hint,quarantine,removal_reason,subreddit_id,title,ups,upvote_ratio,url,self_text) "
-           "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,"
-           "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s);" # there should be 29 fields
+           "INSERT INTO submissions (approved_by, archived, author, author_flair_css_class, "
+           "                         author_flair_text, banned_by, clicked, created, created_utc, distinguished, "
+           "                         domain, downs, edited, rfrom, from_id, from_kind, fullname, gilded, has_fetched, "
+           "                         hidden, hide_score, id, is_self, likes, link_flair_css_class, link_flair_text, "
+           "                         locked, name, over_18, permalink, post_hint, quarantine, removal_reason, "
+           "                         saved, score, selftext, selftext_html, short_link, stickied, subreddit, "
+           "                         subreddit_id, title, ups, url) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, "
+           "                         %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, "
+           "                         %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)" # there should be 29 fields
         )
         # pprint(inspect.getmembers(submission.author))
+
+        if submission.approved_by is not None:
+            approved_by = submission.approved_by.name
+        else:
+            approved_by = None
+
+        archived = submission.archived
         author = submission.author.name or ""
-        banned_by = submission.banned_by or ""
+        author_flair_css_class = submission.author_flair_css_class
+        author_flair_text = submission.author_flair_text
+        banned_by = submission.banned_by
+        clicked = True
+        created = datetime.fromtimestamp(submission.created)
         created_utc = datetime.fromtimestamp(submission.created_utc)
-        distinguished = submission.distinguished or False
-        domain = submission.domain or ""
-        downs = submission.downs or 0
-        edited = submission.edited or False
-        # rfrom = submission.from or ""
+        distinguished = submission.distinguished
+        domain = submission.domain
+        downs = submission.downs
+        edited = submission.edited
         rfrom = ""
-        from_id = submission.from_id or ""
-        from_kind = submission.from_kind or ""
-        gilded = submission.gilded or 0
-        hidden = submission.hidden or False
-        hide_score = submission.hide_score or False
-        rid = submission.id or ""
-        is_self = submission.is_self or False
-        link_flair_css_class = submission.link_flair_css_class or ""
-        link_flair_text = submission.link_flair_text or ""
-        locked = submission.locked or False
-        media = submission.media or ""
-        name = submission.name or ""
-        permalink = submission.permalink or ""
-        post_hint = submission.post_hint or ""
-        quarantine = submission.quarantine or False
-        removal_reason = submission.removal_reason or ""
-        subreddit_id = submission.subreddit_id or ""
-        title = submission.title or ""
-        ups = submission.ups or 0
-        upvote_ratio = submission.upvote_ratio or 0.00
-        url = submission.url or ""
+        from_id = submission.from_id
+        from_kind = submission.from_kind
+        fullanme = submission.fullname
+        gilded = submission.gilded
+        has_feteched = True
+        hidden = submission.hidden
+        hide_score = submission.hide_score
+        rid = submission.id
+        is_self = submission.is_self
+        likes = submission.likes
+        link_flair_css_class = submission.link_flair_css_class
+        link_flair_text = submission.link_flair_text
+        locked = submission.locked
+        name = submission.name
+        over_18 = submission.over_18
+        permalink = submission.permalink
+        post_hint = ""
+        quarantine = submission.quarantine
+        removal_reason = submission.removal_reason
+        saved = submission.saved
+        score = submission.score
+        selftext = submission.selftext
+        selftext_html = submission.selftext_html
+        short_link = submission.short_link
+        stickied = submission.stickied
+        subreddit = submission.subreddit.name
+        subreddit_id = submission.subreddit_id
+        title = submission.title
+        ups = submission.ups
+        url = submission.url
 
-        selftext = submission.selftext or ""
-
-        data = (author,
-                banned_by,
-                created_utc,
-                distinguished,
-                domain,
-                downs,
-                edited,
-                rfrom,
-                from_id,
-                from_kind,
-                gilded,
-                hidden,
-                hide_score,
-                rid,
-                is_self,
-                link_flair_css_class,
-                link_flair_text,
-                locked,
-                media,
-                name,
-                permalink,
-                post_hint,
-                quarantine,
-                removal_reason,
-                subreddit_id,
-                title,
-                ups,
-                upvote_ratio,
-                url,
-                selftext
+        data = (
+            approved_by,
+            archived,
+            author,
+            author_flair_css_class,
+            author_flair_text,
+            banned_by,
+            clicked,
+            created,
+            created_utc,
+            distinguished,
+            domain,
+            downs,
+            edited,
+            rfrom,
+            from_id,
+            from_kind,
+            fullanme,
+            gilded,
+            has_feteched,
+            hidden,
+            hide_score,
+            rid,
+            is_self,
+            likes,
+            link_flair_css_class,
+            link_flair_text,
+            locked,
+            name,
+            over_18,
+            permalink,
+            post_hint,
+            quarantine,
+            removal_reason,
+            saved,
+            score,
+            selftext,
+            selftext_html,
+            short_link,
+            stickied,
+            subreddit,
+            subreddit_id,
+            title,
+            ups,
+            url
         )
 
-        pprint(data)
         try:
             cursor.execute(sql,data)
             self.db.commit()
@@ -294,16 +391,27 @@ class database():
             else:
                 pass
     # InsertSubmission
-
+'''
     def load_submissions(self):
         cursor = self.db.cursor(buffered=True)
 
-        sql = "SELECT target_permalink FROM modlog WHERE action = 'approvelink' or action = 'removelink';"
+        sql = "SELECT distinct(target_permalink) FROM `modlog` where target_fullname like 't3_%';"
 
         cursor.execute(sql)
+        items = []
 
-        for target_permalink in cursor:
-            print(target_permalink)
+        rows = cursor.fetchall()
 
-            item = self.get_submission(self.config['reddit']['root'] + target_permalink)
-            self.insert_submission(item)
+        i = 1
+        for row in rows:
+            self.insert_submission(self.r.get_submission('http://www.reddit.com' + row[0]))
+
+            if i == 100:
+                print("got 100 - inserting")
+                for submission in self.r.get_submissions(items):
+                    self.insert_submission(submission)
+                    items = []
+
+            items += row[0]
+            i += 1
+'''
