@@ -57,6 +57,8 @@ class logloader(object):
 
 # entry
 if __name__ == "__main__":
+    with open('config.json','r') as f:
+        config = json.load(f);
     me = logloader()
     me.reddit_connect()
 
