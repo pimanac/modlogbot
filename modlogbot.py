@@ -82,7 +82,7 @@ class bot(object):
 
         if cursor.rowcount == 0:
             attachment = {}
-            attachment['fallback'] = '*Modlog for the past ' + val + ' ' + interval.lower() + '(s)*'
+            attachment['fallback'] = '*Modlog for the past ' + str(val) + ' ' + interval.lower() + '(s)*'
             attachment['color'] = 'good'
             attachment['text'] = 'There are no actions in the modlog for this item.'
             data['attachments'].append(attachment)
