@@ -292,7 +292,12 @@ class database():
         author = submission.author.name or ""
         author_flair_css_class = submission.author_flair_css_class
         author_flair_text = submission.author_flair_text
-        banned_by = submission.banned_by
+
+        if submission.banned_by is not None:
+            banned_by = busmission.banned_by.name
+        else:
+            banned_by = None
+
         clicked = True
         created = datetime.fromtimestamp(submission.created)
         created_utc = datetime.fromtimestamp(submission.created_utc)
