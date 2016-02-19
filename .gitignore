@@ -5,8 +5,11 @@ config.json
 
 modlogbot-test.py
 tester.py
-# Created by https://www.gitignore.io/api/python
 
+
+
+# Created by https://www.gitignore.io/api/python
+.DS_Store
 
 
 
@@ -73,5 +76,3 @@ target/
 
 #Ipython Notebook
 .ipynb_checkpoints
-
-
