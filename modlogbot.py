@@ -393,20 +393,96 @@ class bot(object):
 
         text = '*modlogbot help*\n```'
 
-        text += '~modlog interval     : show modlog for a specified interval.  Number + \n\n'
+        text += '~xactions link        : shows moderator xactions for a given item\n\n'
+        text += '~xmodlog interval     : show modlog for a specified interval.  Number + \n\n'
         text += '                        h = Hours, d = Days, w = Weeks, m = Months \n\n'
         text += '                        q = Quarter\n\n'
-        text += '                         example: ~modlog 24h    or ~modlog 2w   \n\n'
+        text += '                         example: ~xmodlog 24h    or ~xmodlog 2w   \n\n'
         text += ''
         text += '~userlog username    : show mod log history for this user\n\n'
         text += '~userstats username  : show number of actions in the past 6 months\n\n'
         text += '                       includes all actions\n\n'
         text += '~top                 : show people with over 50 actions in 6 months\n\n'
-        text += '~actions link        : shows moderator actions for a given item\n\n'
+
         text += '```'
 
         data['text'] = text
         return data
+
+    def get_domain(self,domain):
+      result = ""
+      bad_domain = False
+      if '|' in domain:
+         domain = domain.replace('<','').replace('>','').split('|')[1]
+      else:
+         bad_domain = True
+
+      db = mysql.connector.connect(user=self.config['database']['user'],
+                                    password=self.config['database']['password'],
+                                    database=self.config['database']['dbname'])
+
+      cursor = db.cursor()
+
+      # because procs don't work they way i expected them to in python
+      query = (
+         "SELECT DISTINCT(action), COUNT(*) AS cnt, "
+         "("
+         "   SELECT created FROM modlog_submissions WHERE domain = %s AND `action` IN('removelink','approvelink') "
+         "   ORDER BY created ASC limit 1 "
+         ") AS 'Oldest', "
+         "("
+         "   SELECT created FROM modlog_submissions WHERE domain = %s AND `action` IN('removelink','approvelink') "
+         "   ORDER BY created DESC limit 1 "
+         ") AS 'Newest' "
+         "FROM modlog_submissions WHERE domain = %s AND action IN ('removelink', 'approvelink') "
+         "GROUP BY domain, action ORDER BY domain, cnt DESC;"
+      )
+
+      args = ( domain,domain,domain )
+      cursor.execute(query,args)
+
+      # build the message record
+      data = {}
+      data['token'] = self.config['slack']['webhook_token']
+      data['channel'] = self.config['slack']['channel']
+      rs = cursor.fetchall()
+      if cursor.rowcount == 0 or bad_domain:
+         cursor.close()
+         db.close()
+         attachment = {}
+         attachment['fallback'] = 'There are no submissions from this domain.'
+         attachment['color'] = 'good'
+         attachment['text'] = 'There are no submissions from this domain'
+         data['attachments'].append(attachment)
+         return data
+      else:
+         text = '```'
+
+         for item in rs:
+            print(item)
+            action = item[0]
+            cnt = item[1]
+            oldest = item[2].strftime ("%Y-%m-%d %H:%M:%S")
+            newest = item[3].strftime ("%Y-%m-%d %H:%M:%S")
+
+            # a futile attempt at making columns.  fix later
+            if len(action) < 20:
+               action = action + ' '*(20-len(action))
+
+               text += action + ' : ' + str(cnt) + '\n'
+
+         # for
+         text += '```'
+
+         heading = 'Domain:  *' + domain + '*\n'
+         heading += 'Oldest: *' + oldest + '*\n'
+         heading += 'Newest: *' + newest + '*\n\n'
+         data['text'] = heading + text
+      # end if
+      cursor.close()
+      db.close()
+      return data
+
 
 class handler(BaseHTTPRequestHandler):
     def __config__(self):
@@ -439,18 +515,21 @@ class handler(BaseHTTPRequestHandler):
 
             modlogbot = bot()
 
-            if 'userlog' in args[0]:
+            if '~userlog' in args[0]:
                 message = modlogbot.get_userlog(username,doAll)
-            elif 'userstats' in args[0]:
+            elif '~userstats' in args[0]:
                 message = modlogbot.get_userstats(username,doAll)
-            elif 'top' in args[0]:
+            elif '~top' in args[0]:
                 message = modlogbot.get_top()
-            elif 'actions' in args[0]:
+            elif '~actions' in args[0]:
                 link = args[1]
                 message = modlogbot.get_actions(link)
-            elif 'modlog' in args[0]:
+            elif '~modlog' in args[0]:
                 interval = args[1]
                 message = modlogbot.get_modlog(interval)
+            elif '~domain' in args[0]:
+                domain = args[1]
+                message = modlogbot.get_domain(domain)
             else:
                 message = modlogbot.get_help()
 
