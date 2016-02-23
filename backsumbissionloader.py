@@ -183,10 +183,13 @@ class submissionloader(object):
 
         for row in rows:
             link = 'https://www.reddit.com' + row[0]
-            print("getting " + link)
-            submission = self.r.get_submission(link)
-
-            self.insert_submission(submission)
+            # print("getting " + link)
+            try:
+               submission = self.r.get_submission(link)
+               self.insert_submission(submission)
+            except:
+               print("error getting submission " + submssion.fullname)
+               pass
 
 # entry
 if __name__ == "__main__":
@@ -196,5 +199,8 @@ if __name__ == "__main__":
     while True:
         print("Getting back submissions")
         me.load_submissions()
+        print("sleeping")
+        time.sleep(5 * 60)
+
 
     print("Exiting")

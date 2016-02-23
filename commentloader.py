@@ -44,7 +44,12 @@ if __name__ == "__main__":
     me.reddit_connect()
 
     while True:
-        print("Getting live comment stream")
-        me.load_comments_live()
-
+        try:
+           print("Getting live comment stream")
+           me.load_comments_live()
+        except:
+           print("error.  sleeping 60 seconds")
+           time.sleep(60)
+           pass
+           
     print("Exiting")
