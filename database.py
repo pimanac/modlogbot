@@ -11,6 +11,7 @@ class database():
 
     REDDIT_ROOT = "http://www.reddit.com"
 
+
     def __init__(self):
         self.__config__()
         self.init = True
@@ -19,21 +20,13 @@ class database():
         with open('config.json','r') as f:
             self.config = json.load(f);
 
+
     def connect(self):
         self.db = mysql.connector.connect(host=self.config['database']['host'],
                                           user=self.config['database']['user'],
                                           password=self.config['database']['password'],
                                           database='modlog')
 
-        self.r = praw.Reddit('Fetching mod-related info for IRC')
-        scope_list = ['read', 'modlog', 'privatemessages', 'submit']
-        self.oauth = pmini(self.r, app_key=self.config['reddit']['key'],
-                           app_secret=self.config['reddit']['secret'],
-                           access_token=self.config['reddit']['access_token'],
-                           refresh_token=self.config['reddit']['refresh_token'],
-                           scopes=scope_list)
-
-        self.subreddit = self.r.get_subreddit(self.config['reddit']['subreddit'])
     def get_submission(self,link):
         return self.r.get_submission(REDDIT_ROOT + link)
 
@@ -289,12 +282,17 @@ class database():
             approved_by = None
 
         archived = submission.archived
-        author = submission.author.name or ""
+
+        if submission.author is not None:
+           author = submission.author.name
+        else:
+           author = ""
+
         author_flair_css_class = submission.author_flair_css_class
         author_flair_text = submission.author_flair_text
 
         if submission.banned_by is not None:
-            banned_by = busmission.banned_by.name
+            banned_by = submission.banned_by.name
         else:
             banned_by = None
 
