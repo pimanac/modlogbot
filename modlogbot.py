@@ -9,407 +9,418 @@ import mysql.connector
 import json
 import cgi
 import urllib
+from slackclient import SlackClient
 from pprint import pprint
 import inspect
 from database import database
-from http.server import BaseHTTPRequestHandler, HTTPServer
-
+try:
+   from http.server import BaseHTTPRequestHandler, HTTPServer
+except:
+   from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
 class bot(object):
-    def __init__(self):
-        self.__config__()
-        self.enabled=True
+   def __init__(self):
+      self.__config__()
+      self.enabled=True
 
-    def __config__(self):
-        with open('config.json','r') as f:
-            self.config = json.load(f);
+   def __config__(self):
+      with open('config.json','r') as f:
+         self.config = json.load(f);
 
-    def get_modlog(self,interval):
-        # did they specify an interval?
-        regex = re.search('([\d]+)([HhDdWwMmQq])',interval)
+   def slack_connect(self):
+      self.slack = SlackClient(self.config['slack']['bot_token'])
+      try:
+         self.slack.rtm_connect()
+         print("connected")
+      except:
+         print("didn't connect to slack")
 
-        if regex is not None:
-            val = int(regex.group(1))
-            interval = regex.group(2)
+   def get_modlog(self,interval):
+      # did they specify an interval?
+      regex = re.search('([\d]+)([HhDdWwMmQq])',interval)
 
-            if interval == "H" or interval == "h":
-                interval ="HOUR"
-                if val > 8760:
-                    val = 8760
-            elif interval == "D" or interval == "d":
-                interval ="DAY"
-                if val > 365:
-                    val = 365
-            elif interval == "W" or interval == "w":
-                interval ="WEEK"
-                if val > 52:
-                    val = 52
-            elif interval == "M" or interval == "m":
-                interval ="MONTH"
-                if val > 12:
-                    val = 12
-            elif interval == "Q" or interval == "q":
-                interval ="QUARTER"
-                if val > 4:
-                    val = 4
-            else:
-                val = 24
-                interval = "HOUR"
-        else:
+      if regex is not None:
+         val = int(regex.group(1))
+         interval = regex.group(2)
+
+         if interval == "H" or interval == "h":
+            interval ="HOUR"
+            if val > 8760:
+                val = 8760
+         elif interval == "D" or interval == "d":
+            interval ="DAY"
+            if val > 365:
+               val = 365
+         elif interval == "W" or interval == "w":
+            interval ="WEEK"
+            if val > 52:
+               val = 52
+         elif interval == "M" or interval == "m":
+            interval ="MONTH"
+            if val > 12:
+               val = 12
+         elif interval == "Q" or interval == "q":
+            interval ="QUARTER"
+            if val > 4:
+               val = 4
+         else:
             val = 24
-            internal = "HOUR"
+            interval = "HOUR"
+      else:
+         val = 24
+         internal = "HOUR"
+      # if regex is not none
+
+      db = mysql.connector.connect(user=self.config['database']['user'],
+                           password=self.config['database']['password'],
+                           database=self.config['database']['dbname'])
+
+      cursor = db.cursor()
 
 
-        db = mysql.connector.connect(user=self.config['database']['user'],
-               password=self.config['database']['password'],
-               database=self.config['database']['dbname'])
+      query = ("SELECT moderator, count(*) AS cnt FROM `modlog` WHERE created >= DATE_SUB(NOW(), INTERVAL %s " + interval + ") GROUP BY moderator ORDER BY cnt DESC;")
 
-        cursor = db.cursor()
+      cursor.execute(query,(val, ))
+      rs = cursor.fetchall()
 
-
-        query = ("SELECT moderator, count(*) AS cnt FROM `modlog` WHERE created >= DATE_SUB(NOW(), INTERVAL %s " + interval + ") GROUP BY moderator ORDER BY cnt DESC;")
-
-        cursor.execute(query,(val, ))
-        rs = cursor.fetchall()
-
-        # build the message record
-        data = {}
-        data['token'] = self.config['slack']['webhook_token']
-        data['channel'] = self.config['slack']['channel']
-        data['attachments'] = []
-        text = '*Modlog for the past ' + str(val) + ' ' + interval.lower() + '(s)*'
+      # build the message record
+      data = {}
+      data['token'] = self.config['slack']['webhook_token']
+      data['channel'] = self.config['slack']['channel']
+      data['attachments'] = []
+      text = '*Modlog for the past ' + str(val) + ' ' + interval.lower() + '(s)*'
 
 
-        if cursor.rowcount == 0:
-            attachment = {}
-            attachment['fallback'] = '*Modlog for the past ' + str(val) + ' ' + interval.lower() + '(s)*'
-            attachment['color'] = 'good'
-            attachment['text'] = 'There are no actions in the modlog for this item.'
-            data['attachments'].append(attachment)
-        else:
-            text += '```'
-            for item in rs:
-                moderator = item[0]
-                cnt = str(item[1])
+      if cursor.rowcount == 0:
+         attachment = {}
+         attachment['fallback'] = '*Modlog for the past ' + str(val) + ' ' + interval.lower() + '(s)*'
+         attachment['color'] = 'good'
+         attachment['text'] = 'There are no actions in the modlog for this item.'
+         data['attachments'].append(attachment)
+      else:
+         text += '```'
+         for item in rs:
+            moderator = item[0]
+            cnt = str(item[1])
 
-                # ping not, for it is annoying
-                safename =  u'{}\u200B{}'.format(moderator[0], moderator[1:])
+            # ping not, for it is annoying
+            safename =  u'{}\u200B{}'.format(moderator[0], moderator[1:])
 
-                if len(safename) < 20:
-                    safename = safename + ' '* (20-len(safename))
+            if len(safename) < 20:
+               safename = safename + ' '* (20-len(safename))
 
-                if len(cnt) < 18:
-                    cnt = cnt + ' '*(18-len(cnt))
+            if len(cnt) < 18:
+               cnt = cnt + ' '*(18-len(cnt))
 
-                text += moderator + ': ' + cnt + '\n'
+            text += moderator + ': ' + cnt + '\n'
+         # for
+         text += '```'
 
-            # for
-            text += '```'
+         data['text'] = text
+      # if
 
-        data['text'] = text
-        # end if
-        cursor.close()
-        db.close()
-        return data
+      cursor.close()
+      db.close()
+      return data
+   # get_modlog()
 
+   def get_userlog(self,user,all=False):
+      result = ""
+      db = mysql.connector.connect(user=self.config['database']['user'],
+                                 password=self.config['database']['password'],
+                                 database=self.config['database']['dbname'])
 
-    def get_userlog(self,user,all=False):
-       result = ""
-       db = mysql.connector.connect(user=self.config['database']['user'],
-                                    password=self.config['database']['password'],
-                                    database=self.config['database']['dbname'])
+      cursor = db.cursor()
 
-       cursor = db.cursor()
+      if all ==True:
+         query = ("SELECT action, COUNT(*) AS cnt FROM modlog "
+                  "WHERE target_author = %s AND created >= DATE_SUB(NOW(),INTERVAL 6 MONTH) AND action != 'distinguished' AND action != 'editflair' AND action != 'distinguish' GROUP BY action ORDER BY cnt DESC;")
+      else:
+         query = ("SELECT action, COUNT(*) AS cnt FROM modlog "
+                  "WHERE target_author = %s AND created >= DATE_SUB(NOW(),INTERVAL 6 MONTH) AND action != 'distinguished' AND action != 'approvelink' AND action != 'approvecomment' AND action != 'editflair' AND action != 'distinguish' GROUP BY action ORDER BY cnt DESC;")
 
-       if all ==True:
-           query = ("SELECT action, COUNT(*) AS cnt FROM modlog "
-                    "WHERE target_author = %s AND created >= DATE_SUB(NOW(),INTERVAL 6 MONTH) AND action != 'distinguished' AND action != 'editflair' AND action != 'distinguish' GROUP BY action ORDER BY cnt DESC;")
-       else:
-           query = ("SELECT action, COUNT(*) AS cnt FROM modlog "
-                    "WHERE target_author = %s AND created >= DATE_SUB(NOW(),INTERVAL 6 MONTH) AND action != 'distinguished' AND action != 'approvelink' AND action != 'approvecomment' AND action != 'editflair' AND action != 'distinguish' GROUP BY action ORDER BY cnt DESC;")
+      cursor.execute(query,(user, ))
 
-       cursor.execute(query,(user, ))
+      rs = cursor.fetchall()
 
-       rs = cursor.fetchall()
+      actionlist = '```\n'
+      for item in rs:
+         action = item[0]
+         cnt = item[1]
 
-       actionlist = '```\n'
-       for item in rs:
-           action = item[0]
-           cnt = item[1]
+         if len(action) < 20:
+            action = action + ' '*(20-len(action))
 
-           if len(action) < 20:
+         actionlist += action + ' : ' + str(cnt) + '\n'
+      # for
+
+      actionlist += '```'
+
+      if actionlist == '```\n```':
+         actionlist = ''
+
+      cursor = db.cursor()
+
+      if all == True:
+         query = ("SELECT action, moderator, target_permalink,created FROM modlog "
+                  "WHERE target_author = (%s) AND action != 'distinguished' AND action != 'editflair' AND action != 'distinguish' ORDER BY created DESC LIMIT 10;")
+      else:
+         query = ("SELECT action, moderator, target_permalink,created FROM modlog "
+                  "WHERE target_author = (%s) AND action != 'distinguished' AND action != 'approvelink' AND action != 'approvecomment' AND action != 'editflair' AND action != 'distinguish' ORDER BY created DESC LIMIT 10;")
+
+      cursor.execute(query,(user, ))
+      rs = cursor.fetchall()
+
+      # build the message record
+      data = {}
+      data['token'] = self.config['slack']['webhook_token']
+      data['channel'] = self.config['slack']['channel']
+      data['text'] = '*User report for ' + user + '* (6 Month / last 10)\n' + actionlist
+      data['attachments'] = []
+
+      if cursor.rowcount == 0:
+         attachment = {}
+         attachment['fallback'] = 'This user has no actionable items in the modlog.'
+         attachment['color'] = 'good'
+         attachment['text'] = 'This user has no actionable items in the modlog.'
+         data['attachments'].append(attachment)
+      else:
+         for item in rs:
+            action = item[0]
+            moderator = item[1]
+
+            # ping not, for it is annoying
+            safename =  u'{}\u200B{}'.format(moderator[0], moderator[1:])
+
+            # a futile attempt at making columns.  fix later
+            if len(action) < 20:
                action = action + ' '*(20-len(action))
 
-           actionlist += action + ' : ' + str(cnt) + '\n'
-       actionlist += '```'
+            if len(safename) < 20:
+               safename =  safename + ' '*(20-len(safename))
 
-       if actionlist == '```\n```':
-           actionlist = ''
+            link = ''
+            if len(item[2]) > 0:
+               link = self.config['reddit']['root'] + item[2]
 
-       #cursor.close()
+            created = item[3].strftime ("%Y-%m-%d %H:%M")
 
-       cursor = db.cursor()
+            if "approve" in action:
+               color = 'good'
+            elif "remove" in action:
+               color = 'danger'
+            elif "edit" in action:
+               color = 'warning'
+            else:
+               color = '#439FE0'
+            # if
 
-       if all == True:
-           query = ("SELECT action, moderator, target_permalink,created FROM modlog "
-                    "WHERE target_author = (%s) AND action != 'distinguished' AND action != 'editflair' AND action != 'distinguish' ORDER BY created DESC LIMIT 10;")
-       else:
-          query = ("SELECT action, moderator, target_permalink,created FROM modlog "
-                    "WHERE target_author = (%s) AND action != 'distinguished' AND action != 'approvelink' AND action != 'approvecomment' AND action != 'editflair' AND action != 'distinguish' ORDER BY created DESC LIMIT 10;")
-
-       cursor.execute(query,(user, ))
-       rs = cursor.fetchall()
-
-       # build the message record
-       data = {}
-       data['token'] = self.config['slack']['webhook_token']
-       data['channel'] = self.config['slack']['channel']
-       data['text'] = '*User report for ' + user + '* (6 Month / last 10)\n' + actionlist
-       data['attachments'] = []
-
-       if cursor.rowcount == 0:
-           attachment = {}
-           attachment['fallback'] = 'This user has no actionable items in the modlog.'
-           attachment['color'] = 'good'
-           attachment['text'] = 'This user has no actionable items in the modlog.'
-           data['attachments'].append(attachment)
-       else:
-           for item in rs:
-               action = item[0]
-               moderator = item[1]
-
-               # ping not, for it is annoying
-               safename =  u'{}\u200B{}'.format(moderator[0], moderator[1:])
-
-               # a futile attempt at making columns.  fix later
-               if len(action) < 20:
-                   action = action + ' '*(20-len(action))
-
-               if len(safename) < 20:
-                   safename =  safename + ' '*(20-len(safename))
-
-               link = ''
-               if len(item[2]) > 0:
-                   link = self.config['reddit']['root'] + item[2]
-
-               created = item[3].strftime ("%Y-%m-%d %H:%M")
-
-               if "approve" in action:
-                   color = 'good'
-               elif "remove" in action:
-                   color = 'danger'
-               elif "edit" in action:
-                   color = 'warning'
-               else:
-                   color = '#439FE0'
-
-               attachment = {}
-               attachment['fallback'] = 'user has actions'
-               attachment['color'] = color
-               attachment['text'] = ''
-               attachment['title'] = action
-               attachment['title_link'] = link
-               attachment['fields'] = []
-
-               field = {}
-               field['title'] = ''
-               field['value'] = safename + ' : ' + created
-               field['short'] = True
-               attachment['fields'].append(field)
-
-               data['attachments'].append(attachment)
-
-          # for
-       # end if
-       cursor.close()
-       db.close()
-       return data
-
-    def get_userstats(self,user,all=False):
-       result = ""
-       db = mysql.connector.connect(user=self.config['database']['user'],
-                                    password=self.config['database']['password'],
-                                    database=self.config['database']['dbname'])
-
-       cursor = db.cursor()
-
-       query = ("SELECT action, COUNT(*) as 'c' FROM modlog WHERE target_author = %s AND created >= DATE_SUB(created,INTERVAL 6 MONTH) GROUP BY action ORDER BY c DESC;")
-
-
-       cursor.execute(query,(user, ))
-       rs = cursor.fetchall()
-
-       # build the message record
-       data = {}
-       data['token'] = self.config['slack']['webhook_token']
-       data['channel'] = self.config['slack']['channel']
-
-       text = '*User stats for ' + user + '* (6 Months)\n'
-
-       if cursor.rowcount == 0:
-           attachment = {}
-           attachment['fallback'] = 'This user has no items in the modlog.'
-           attachment['color'] = 'good'
-           attachment['text'] = 'This user has no items in the modlog.'
-           data['attachments'].append(attachment)
-       else:
-           text += '```'
-           for item in rs:
-               action = item[0]
-               cnt = item[1]
-
-               # a futile attempt at making columns.  fix later
-               if len(action) < 20:
-                   action = action + ' '*(20-len(action))
-
-               text += action + ' : ' + str(cnt) + '\n'
-
-           # for
-           text += '```'
-           data['text'] = text
-       # end if
-       cursor.close()
-       db.close()
-       return data
-
-    def get_actions(self,permalink):
-        result = ""
-        reallink = permalink
-        if permalink[:6] == "<https":
-            shortlink = permalink.replace('https://www.reddit.com','')
-            permalink = permalink.replace('https','http',1)
-        else:
-            shortlink = permalink.replace('http://www.reddit.com','')
-
-        shortlink = shortlink.replace('<','')
-        shortlink = shortlink.replace('>','')
-        db = mysql.connector.connect(user=self.config['database']['user'],
-               password=self.config['database']['password'],
-               database=self.config['database']['dbname'])
-
-        cursor = db.cursor()
-
-        query = ("SELECT action, moderator, created FROM `modlog` WHERE target_permalink = %s ORDER BY created DESC;")
-
-
-        cursor.execute(query,(shortlink, ))
-        rs = cursor.fetchall()
-
-        # build the message record
-        data = {}
-        data['token'] = self.config['slack']['webhook_token']
-        data['channel'] = self.config['slack']['channel']
-        data['attachments'] = []
-        text = '' + reallink + '\n'
-
-
-
-        if cursor.rowcount == 0:
             attachment = {}
-            attachment['fallback'] = 'there are no actions in the modlog for this item'
-            attachment['color'] = 'good'
-            attachment['text'] = 'There are no actions in the modlog for this item.'
+            attachment['fallback'] = 'user has actions'
+            attachment['color'] = color
+            attachment['text'] = ''
+            attachment['title'] = action
+            attachment['title_link'] = link
+            attachment['fields'] = []
+
+            field = {}
+            field['title'] = ''
+            field['value'] = safename + ' : ' + created
+            field['short'] = True
+            attachment['fields'].append(field)
+
             data['attachments'].append(attachment)
-        else:
-            text += '```'
-            for item in rs:
-                action = item[0]
-                moderator = item[1]
-                created = item[2].strftime ("%Y-%m-%d %H:%M:%S")
+         # for
+      # end if
+      cursor.close()
+      db.close()
+      return data
+   # get_userlog()
 
-                # a futile attempt at making columns.  fix later
-                if len(action) < 18:
-                    action = action + ' '* (18-len(action))
-
-                if len(moderator) < 18:
-                    moderator = moderator + ' '*(18-len(moderator))
-
-                text += action + ':' + moderator + ': ' + created + '\n'
-
-            # for
-            text += '```'
-
-        data['text'] = text
-        # end if
-        cursor.close()
-        db.close()
-        return data
-
-    def get_top(self):
-       result = ""
-       db = mysql.connector.connect(user=self.config['database']['user'],
+   def get_userstats(self,user,all=False):
+      result = ""
+      db = mysql.connector.connect(user=self.config['database']['user'],
                                     password=self.config['database']['password'],
                                     database=self.config['database']['dbname'])
 
-       cursor = db.cursor()
+      cursor = db.cursor()
 
-       query = ("SELECT target_author, COUNT(*) AS cnt, action FROM modlog WHERE created >= DATE_SUB(created,INTERVAL 6 MONTH) AND "
-                "action != '' AND target_author != '' and action != 'distinguished' AND action != 'approvelink' AND action != 'approvecomment' "
-                "AND action != 'editflair' AND action != 'distinguish'  GROUP BY target_author,action   HAVING cnt > 50 ORDER BY `cnt`  DESC;")
+      query = ("SELECT action, COUNT(*) as 'c' FROM modlog WHERE target_author = %s AND created >= DATE_SUB(created,INTERVAL 6 MONTH) GROUP BY action ORDER BY c DESC;")
 
 
-       cursor.execute(query)
-       rs = cursor.fetchall()
+      cursor.execute(query,(user, ))
+      rs = cursor.fetchall()
 
-       # build the message record
-       data = {}
-       data['token'] = self.config['slack']['webhook_token']
-       data['channel'] = self.config['slack']['channel']
+      # build the message record
+      data = {}
+      data['token'] = self.config['slack']['webhook_token']
+      data['channel'] = self.config['slack']['channel']
 
-       text = '*Removal counts over 100* (6 Months)\n'
+      text = '*User stats for ' + user + '* (6 Months)\n'
 
-       if cursor.rowcount == 0:
-           attachment = {}
-           attachment['fallback'] = 'This user has no items in the modlog.'
-           attachment['color'] = 'good'
-           attachment['text'] = 'This user has no items in the modlog.'
-           data['attachments'].append(attachment)
-       else:
-           text += '```'
-           for item in rs:
-               target_author = item[0]
-               cnt = item[1]
+      if cursor.rowcount == 0:
+         attachment = {}
+         attachment['fallback'] = 'This user has no items in the modlog.'
+         attachment['color'] = 'good'
+         attachment['text'] = 'This user has no items in the modlog.'
+         data['attachments'].append(attachment)
+      else:
+         text += '```'
+         for item in rs:
+            action = item[0]
+            cnt = item[1]
 
-               # a futile attempt at making columns.  fix later
-               if len(target_author) < 35:
-                   target_author = target_author + ' '*(35-len(target_author))
+            # a futile attempt at making columns.  fix later
+            if len(action) < 20:
+                action = action + ' '*(20-len(action))
 
-               text += target_author + ' : ' + str(cnt) + '\n'
-
-           # for
-           text += '```'
-           data['text'] = text
+            text += action + ' : ' + str(cnt) + '\n'
+         # for
+         text += '```'
+         data['text'] = text
        # end if
-       cursor.close()
-       db.close()
-       return data
+      cursor.close()
+      db.close()
+      return data
+   # get_userstats()
 
-    def get_help(self):
 
-        # build the message record
-        data = {}
-        data['token'] = self.config['slack']['webhook_token']
-        data['channel'] = self.config['slack']['channel']
+   def get_actions(self,permalink):
+      result = ""
+      reallink = permalink
+      if permalink[:6] == "<https":
+         shortlink = permalink.replace('https://www.reddit.com','')
+         permalink = permalink.replace('https','http',1)
+      else:
+         shortlink = permalink.replace('http://www.reddit.com','')
 
-        text = '*modlogbot help*\n```'
+      shortlink = shortlink.replace('<','')
+      shortlink = shortlink.replace('>','')
+      db = mysql.connector.connect(user=self.config['database']['user'],
+                              password=self.config['database']['password'],
+                              database=self.config['database']['dbname'])
 
-        text += '~xactions link        : shows moderator xactions for a given item\n\n'
-        text += '~xmodlog interval     : show modlog for a specified interval.  Number + \n\n'
-        text += '                        h = Hours, d = Days, w = Weeks, m = Months \n\n'
-        text += '                        q = Quarter\n\n'
-        text += '                         example: ~xmodlog 24h    or ~xmodlog 2w   \n\n'
-        text += ''
-        text += '~userlog username    : show mod log history for this user\n\n'
-        text += '~userstats username  : show number of actions in the past 6 months\n\n'
-        text += '                       includes all actions\n\n'
-        text += '~top                 : show people with over 50 actions in 6 months\n\n'
+      cursor = db.cursor()
 
-        text += '```'
+      query = ("SELECT action, moderator, created FROM `modlog` WHERE target_permalink = %s ORDER BY created DESC;")
 
-        data['text'] = text
-        return data
+      cursor.execute(query,(shortlink, ))
+      rs = cursor.fetchall()
 
-    def get_domain(self,domain):
+      # build the message record
+      data = {}
+      data['token'] = self.config['slack']['webhook_token']
+      data['channel'] = self.config['slack']['channel']
+      data['attachments'] = []
+      text = '' + reallink + '\n'
+
+      if cursor.rowcount == 0:
+         attachment = {}
+         attachment['fallback'] = 'there are no actions in the modlog for this item'
+         attachment['color'] = 'good'
+         attachment['text'] = 'There are no actions in the modlog for this item.'
+         data['attachments'].append(attachment)
+      else:
+         text += '```'
+         for item in rs:
+            action = item[0]
+            moderator = item[1]
+            created = item[2].strftime ("%Y-%m-%d %H:%M:%S")
+
+            # a futile attempt at making columns.  fix later
+            if len(action) < 18:
+               action = action + ' '* (18-len(action))
+
+            if len(moderator) < 18:
+               moderator = moderator + ' '*(18-len(moderator))
+
+            text += action + ':' + moderator + ': ' + created + '\n'
+
+         # for
+         text += '```'
+
+         data['text'] = text
+      # end if
+      cursor.close()
+      db.close()
+      return data
+   # get_actions()
+
+   def get_top(self):
+      result = ""
+      db = mysql.connector.connect(user=self.config['database']['user'],
+                                 password=self.config['database']['password'],
+                                 database=self.config['database']['dbname'])
+
+      cursor = db.cursor()
+
+      query = ("SELECT target_author, COUNT(*) AS cnt, action FROM modlog WHERE created >= DATE_SUB(created,INTERVAL 6 MONTH) AND "
+               "action != '' AND target_author != '' and action != 'distinguished' AND action != 'approvelink' AND action != 'approvecomment' "
+               "AND action != 'editflair' AND action != 'distinguish'  GROUP BY target_author,action   HAVING cnt > 50 ORDER BY `cnt`  DESC;")
+
+
+      cursor.execute(query)
+      rs = cursor.fetchall()
+
+      # build the message record
+      data = {}
+      data['token'] = self.config['slack']['webhook_token']
+      data['channel'] = self.config['slack']['channel']
+
+      text = '*Removal counts over 100* (6 Months)\n'
+
+      if cursor.rowcount == 0:
+         attachment = {}
+         attachment['fallback'] = 'This user has no items in the modlog.'
+         attachment['color'] = 'good'
+         attachment['text'] = 'This user has no items in the modlog.'
+         data['attachments'].append(attachment)
+      else:
+         text += '```'
+         for item in rs:
+            target_author = item[0]
+            cnt = item[1]
+            # a futile attempt at making columns.  fix later
+            if len(target_author) < 35:
+                target_author = target_author + ' '*(35-len(target_author))
+
+            text += target_author + ' : ' + str(cnt) + '\n'
+         # for
+         text += '```'
+         data['text'] = text
+      # end if
+      cursor.close()
+      db.close()
+      return data
+   # get_top()
+
+   def get_help(self):
+
+      # build the message record
+      data = {}
+      data['token'] = self.config['slack']['webhook_token']
+      data['channel'] = self.config['slack']['channel']
+
+      text = '*modlogbot help*\n```'
+
+      text += '~xactions link        : shows moderator xactions for a given item\n\n'
+      text += '~xmodlog interval     : show modlog for a specified interval.  Number + \n\n'
+      text += '                        h = Hours, d = Days, w = Weeks, m = Months \n\n'
+      text += '                        q = Quarter\n\n'
+      text += '                         example: ~xmodlog 24h    or ~xmodlog 2w   \n\n'
+      text += ''
+      text += '~userlog username    : show mod log history for this user\n\n'
+      text += '~userstats username  : show number of actions in the past 6 months\n\n'
+      text += '                       includes all actions\n\n'
+      text += '~top                 : show people with over 50 actions in 6 months\n\n'
+
+      text += '```'
+
+      data['text'] = text
+      return data
+   # get_help()
+
+   def get_domain(self,domain):
       result = ""
       bad_domain = False
       if '|' in domain:
@@ -482,68 +493,147 @@ class bot(object):
       cursor.close()
       db.close()
       return data
+   # get_domain()
+
+   def run(self):
+      while True:
+         data = self.slack.rtm_read()
+
+         if not data:
+            continue
+         elif data[0]['type'] != 'message':
+            continue
+         elif 'text' not in data[0]:
+            continue
+         elif data[0]['text'] == '':
+            continue
+         elif data[0]['text'][0] != '~':
+            continue
+
+         chan = data[0]['channel']
+
+         args = str(data[0]['text']).split(' ')
+         doAll = False
+         if len(args) >= 2:
+            username = args[1]
+            print('Command: ' + args[0])
+            print('Args[1]  ' + args[1])
+
+         if '~userlog' in args[0]:
+            message = self.get_userlog(username,doAll)
+         elif '~userstats' in args[0]:
+            username = args[1]
+            message = self.get_userstats(username,doAll)
+         elif '~top' in args[0]:
+            message = self.get_top()
+         elif '~xactions' in args[0]:
+            link = args[1]
+            message = self.get_actions(link)
+         elif '~xmodlog' in args[0]:
+            interval = args[1]
+            message = self.get_modlog(interval)
+         elif '~domain' in args[0]:
+            domain = args[1]
+            message = self.get_domain(domain)
+         elif '~help' in args[0]:
+            message = self.get_help()
+         else:
+            message = '';
+
+         if message != '':
+            try:
+               if 'attachments' in message:
+                  self.slack.api_call('chat.postMessage', as_user=True,
+                                      channel=chan, text=message['text'],attachments=json.dumps(message['attachments']))
+               else:
+                  self.slack.api_call('chat.postMessage', as_user=True,
+                                   channel=chan, text=message['text'])
+            except:
+               print("There was a problem sending the slack message")
+               time.sleep(5)
+               pass
+
+   # run()
 
 
 class handler(BaseHTTPRequestHandler):
-    def __config__(self):
-        with open('config.json','r') as f:
-            self.config = json.load(f);
+   def __config__(self):
+      with open('config.json','r') as f:
+         self.config = json.load(f);
 
-    def do_POST(self):
-        self.__config__()
-        ctype, pdict = cgi.parse_header(self.headers['content-type'])
-        if ctype == 'multipart/form-data':
-            postvars = cgi.parse_multipart(self.rfile, pdict)
-        elif ctype == 'application/x-www-form-urlencoded':
-            length = int(self.headers['content-length'])
-            postvars = urllib.parse.parse_qs(self.rfile.read(length).decode("utf8"))
-        else:
-            postvars = {}
-
-
-        args = str(postvars['text'][0]).split(' ')
-        doAll = False
-        if len(args) >= 2:
-            username = args[1]
-            print('Fetching ' + username)
-
-        if str(postvars['token'][0]) in self.config['slack']['webhook_token']:
-            self.send_response(200)
-            self.send_header('Content-type','application/json')
-
-            self.end_headers()
-
-            modlogbot = bot()
-
-            if '~userlog' in args[0]:
-                message = modlogbot.get_userlog(username,doAll)
-            elif '~userstats' in args[0]:
-                message = modlogbot.get_userstats(username,doAll)
-            elif '~top' in args[0]:
-                message = modlogbot.get_top()
-            elif '~actions' in args[0]:
-                link = args[1]
-                message = modlogbot.get_actions(link)
-            elif '~modlog' in args[0]:
-                interval = args[1]
-                message = modlogbot.get_modlog(interval)
-            elif '~domain' in args[0]:
-                domain = args[1]
-                message = modlogbot.get_domain(domain)
-            else:
-                message = modlogbot.get_help()
+   def do_POST(self):
+      self.__config__()
+      ctype, pdict = cgi.parse_header(self.headers['content-type'])
+      if ctype == 'multipart/form-data':
+         postvars = cgi.parse_multipart(self.rfile, pdict)
+      elif ctype == 'application/x-www-form-urlencoded':
+         length = int(self.headers['content-length'])
+         postvars = urllib.parse.parse_qs(self.rfile.read(length).decode("utf8"))
+      else:
+         postvars = {}
 
 
-            self.wfile.write(bytes(json.dumps(message),"utf8"))
-            return
-        else:
-            print('Invalid token')
-            self.send_response(403)
-            return
+      args = str(postvars['text'][0]).split(' ')
+      doAll = False
+      if len(args) >= 2:
+         username = args[1]
+         print('Fetching ' + username)
+
+      if str(postvars['token'][0]) in self.config['slack']['webhook_token']:
+         self.send_response(200)
+         self.send_header('Content-type','application/json')
+
+         self.end_headers()
+
+         modlogbot = bot()
+
+         if '~userlog' in args[0]:
+             message = modlogbot.get_userlog(username,doAll)
+         elif '~userstats' in args[0]:
+             message = modlogbot.get_userstats(username,doAll)
+         elif '~top' in args[0]:
+             message = modlogbot.get_top()
+         elif '~xactions' in args[0]:
+             link = args[1]
+             message = modlogbot.get_actions(link)
+         elif '~xmodlog' in args[0]:
+             interval = args[1]
+             message = modlogbot.get_modlog(interval)
+         elif '~domain' in args[0]:
+             domain = args[1]
+             message = modlogbot.get_domain(domain)
+         else:
+             message = modlogbot.get_help()
+
+
+         self.wfile.write(bytes(json.dumps(message),"utf8"))
+         return
+      else:
+         print('Invalid token')
+         self.send_response(403)
+         return
 
 
 
-print("Starting server")
-httpd = HTTPServer(('0.0.0.0',8777),handler)
-print("running")
-httpd.serve_forever()
+print("starting")
+
+print("reading config")
+with open('config.json','r') as f:
+   config = json.load(f);
+
+if config['slack']['mode'] == "bot":
+   # do bot things
+   bot = bot()
+
+   bot.slack_connect()
+   bot.run()
+elif config['slack']['mode'] == "webhook":
+   # do webhook things
+   print("Starting HTTP server")
+   httpd = HTTPServer(('0.0.0.0',8777),handler)
+   print("running")
+   httpd.serve_forever()
+else:
+   print("invalid slack mode")
+
+print("exiting")
