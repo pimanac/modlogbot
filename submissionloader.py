@@ -43,11 +43,15 @@ class submissionloader(object):
 
 # entry
 if __name__ == "__main__":
-    me = submissionloader()
-    me.reddit_connect()
+   me = submissionloader()
+   me.reddit_connect()
 
-    while True:
-        print("Getting live submission stream")
-        me.load_submissions_live()
+   while True:
+      try:
+         print("Getting live submission stream")
+         me.load_submissions_live()
+      except:
+         print("error.  Sleeping 60 seconds.")
+         time.sleep(60)
 
-    print("Exiting")
+   print("Exiting")

@@ -50,6 +50,5 @@ if __name__ == "__main__":
         except:
            print("error.  sleeping 60 seconds")
            time.sleep(60)
-           pass
-           
+
     print("Exiting")
