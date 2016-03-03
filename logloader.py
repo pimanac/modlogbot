@@ -32,23 +32,29 @@ class logloader(object):
 
         self.subreddit = self.r.get_subreddit(self.config['reddit']['subreddit'])
 
-    def get_submission(self,link):
-        return self.r.get_submission(self.config['reddit']['root'] + link)
+    def get_submission(self,id):
+        return self.r.get_submission(submission_id=id)
     # get_selfpost
+    
+    
 
     def get_modlog(self):
         db = database()
         db.connect()
 
         i=0
-        exitAt = 5000
+        exitAt = 100
         for x in self.subreddit.get_mod_log(limit=int(self.config['reddit']['max_requests'])):
             if x is not None:
                 result = db.insert_modlog(x)
-                print(result)
+                type = x.target_fullname.split('_')[0]
+                id = x.target_fullname.split('_')[1]
+                
+                if type == 't3':
+                   db.insert_submission(self.get_submission(id))
+
                 if result == False:
                     i += 1
-
                 if i == exitAt:
                     print('OK Ive had enough')
                     break
@@ -61,7 +67,7 @@ if __name__ == "__main__":
         config = json.load(f);
     me = logloader()
     me.reddit_connect()
-
+    
     while True:
         print("Getting modlog")
         me.get_modlog()
