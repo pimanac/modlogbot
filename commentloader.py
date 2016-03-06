@@ -35,8 +35,12 @@ class commentloader(object):
         self.db.connect()
         for comment in praw.helpers.comment_stream(self.r, self.config['reddit']['subreddit'],
                                            limit=20, verbosity=2):
-
-           self.db.insert_comment(comment)
+           
+           try:
+              self.db.insert_comment(comment)
+           except:
+              print("could not insert comment")
+              raise 
 
 # entry
 if __name__ == "__main__":
@@ -48,7 +52,7 @@ if __name__ == "__main__":
            print("Getting live comment stream")
            me.load_comments_live()
         except:
-           print("error.  sleeping 60 seconds")
-           time.sleep(60)
+           print("error.  sleeping 10 seconds")
+           time.sleep(10)
 
     print("Exiting")
