@@ -1,0 +1,40 @@
+# submission limits / flood protection
+# this bot reads title flairs to determine if posts are removed.
+# moderators are not exempt from this bot and should approve their posts manually
+# should they have the need - which should be very unlikely.
+flood_protection:
+   # max_submissions_per_day
+   # The max number of submissions a user can submit during a 24 hour period (utc).  Deleted posts *are* 
+   # counted against this limit.  This is to encourage users to be more selective in their content.
+   # Posts removed by moderators *are not* counted against the limit.
+   max_submissions_per_day: 5
+   #
+   # min_wait_between_submissions
+   # the max number of submissions per minute per user.  all submissions regardless of their
+   # status (approved, removed, untouched, deleted, etc) are counted.
+   # moderators are not exempt from this limit.
+   min_wait_between_submissions: 10
+   
+   flair: "Queue Flooding"
+   
+   #  [%LINKLIST]  will be replaced with the list of submissions
+   max_submissions_per_day_comment: |
+        
+        Please do not flood the submission queue.  You have already submitted five articles within the last 24 hours. These links are:
+        
+        %LINKLIST%
+
+        [More information can be found here]()
+        
+        **I am a bot.  Sometimes I make mistakes.  If you feel this is in error please [message the moderators]()
+
+
+   min_wait_between_submissions_comment: |
+        
+        Please do not flood the submission queue.
+        
+
+        [More information can be found here]()
+        
+        **I am a bot.  Sometimes I make mistakes.  If you feel this is in error please [message the moderators]()
+
