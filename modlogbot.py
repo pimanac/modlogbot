@@ -104,7 +104,7 @@ class bot(object):
             cnt = str(item[1])
 
             # ping not, for it is annoying
-            safename =  u'{}\u200B{}'.format(moderator[0], moderator[1:])
+            safename = moderator[0] + "." + moderator[1:] 
 
             if len(safename) < 20:
                safename = safename + ' '* (20-len(safename))
@@ -112,7 +112,7 @@ class bot(object):
             if len(cnt) < 18:
                cnt = cnt + ' '*(18-len(cnt))
 
-            text += moderator + ': ' + cnt + '\n'
+            text += safename + ': ' + cnt + '\n'
          # for
          text += '```'
 
@@ -190,7 +190,7 @@ class bot(object):
             moderator = item[1]
 
             # ping not, for it is annoying
-            safename =  u'{}\u200B{}'.format(moderator[0], moderator[1:])
+            safename = moderator[0] + "." + moderator[1:] 
 
             # a futile attempt at making columns.  fix later
             if len(action) < 20:
@@ -460,11 +460,13 @@ class bot(object):
       if cursor.rowcount == 0 or bad_domain:
          cursor.close()
          db.close()
+         data['attachments'] = []
          attachment = {}
          attachment['fallback'] = 'There are no submissions from this domain.'
          attachment['color'] = 'good'
          attachment['text'] = 'There are no submissions from this domain'
          data['attachments'].append(attachment)
+         data['text'] = "There are no submissions from this domain"
          return data
       else:
          text = '```'
