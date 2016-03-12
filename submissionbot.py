@@ -39,7 +39,7 @@ class submissionloader(object):
        try:
           wiki = self.subreddit.get_wiki_page('modlogbot').content_md
           self.subconfig = yaml.load(wiki)
-       except Exception,e:
+       except Exception as e:
           print("invalid wiki yaml")
           print(str(e))
           sys.exit()
@@ -101,7 +101,7 @@ class submissionloader(object):
           
        try:
           data = self.db.check_submissions_per_day(submission)
-       except Exception,e:
+       except Exception as e:
           print(bcolors.FAIL + "Unable to get number of submissions per day"  + bcolors.ENDC)
           print(str(e))
           #sys.exit()
@@ -143,7 +143,7 @@ class submissionloader(object):
                
                submission.add_comment(comment).distinguish()
                #sys.exit()
-            except Exception, e:
+            except Exception as e:
                print(str(e))
                return
        else:
@@ -153,7 +153,7 @@ class submissionloader(object):
          # time between posts
          try:
             data = self.db.check_time_between_submissions(submission)
-         except Exception,e:
+         except Exception as e:
             print(bcolors.FAIL + "Unable to get time between last submission"  + bcolors.ENDC)
             print(str(e))
             return
@@ -188,7 +188,7 @@ class submissionloader(object):
                
                submission.add_comment(comment).distinguish()
                #sys.exit()
-            except Exception, e:
+            except Exception as e:
                print(bcolors.FAIL + "unable to report submission" + bcolors.ENDC)
                print(str(e))
                return
