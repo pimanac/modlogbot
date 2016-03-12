@@ -23,7 +23,7 @@ class logloader(object):
         ''' Connects to Reddit API '''
 
         self.r = praw.Reddit('pimanac log analysis')
-        scope_list = ['read', 'modlog', 'privatemessages', 'submit']
+        scope_list = ['modflair','identity','modposts','read','submit','wikiread','modwiki','report','edit','flair','modlog']
         self.oauth = pmini(self.r, app_key=self.config['reddit']['key'],
                            app_secret=self.config['reddit']['secret'],
                            access_token=self.config['reddit']['access_token'],
