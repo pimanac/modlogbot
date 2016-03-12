@@ -30,6 +30,119 @@ class database():
     def get_submission(self,link):
         return self.r.get_submission(REDDIT_ROOT + link)
 
+       
+    def check_submissions_per_day(self,submission):
+       # returns the number of submissions per day
+       result = {}
+       result['submissions'] = -1
+       result['links'] = []
+       result['titles'] = []
+       
+       
+       
+       # approved submissions count, removed do not
+       # approved is not null
+       
+       #   mod approved       OR     sitting in the queue
+       # approved is not null OR (flair is empty AND approved_by IS NULL)
+       sql = (
+        "SELECT title,short_link FROM submissions_past_24hours WHERE author = %s AND fullname != %s AND ("
+        "       approved_by IS NOT NULL OR ((link_flair_text IS NULL OR link_flair_text = '') AND "
+        "       approved_by IS NULL)"
+        ") ORDER BY created_utc DESC"
+       )
+       
+       data = ( submission.author.name,submission.fullname )
+       cursor = self.db.cursor()
+       cursor.execute(sql,data)
+       rs = cursor.fetchall()
+       if cursor.rowcount > 0:
+          i = 1
+          for item in rs:
+             result['submissions'] = i
+             result['titles'].append(item[0])
+             result['links'].append(item[1])
+             i += 1
+         
+       cursor.close()
+       
+       print("")
+       print("Submission author : " + submission.author.name)
+       print("# in past 24 hrs  : " + str(result['submissions']))
+       pprint(result['links'])
+       pprint(result['titles'])
+       print("")
+       
+       
+       return result
+        
+    def check_time_between_submissions(self,submission):
+       # returns the number of seconds  + link since the last post
+       # if the user has submitted only one link in 24 hours this will return oldest = newest
+       # its extremely unlikely that a human will submit more than one post per second
+       # and the bots that do should be caught other ways
+       
+       result = {}
+       result['minutes'] = -1
+       result['prev_short_link'] = None
+       
+       if submission.author is None:
+          return result
+          
+       if submission.author.name == "":
+          return result
+       
+       sql = "SELECT created_utc,short_link FROM submissions WHERE author = %s AND created_utc <= %s ORDER BY created_utc DESC LIMIT 2"
+       
+       data = (submission.author.name,datetime.utcfromtimestamp(submission.created_utc))
+       
+       cursor = self.db.cursor()
+       cursor.execute(sql,data)
+       rs = cursor.fetchall()
+       
+       newest = None
+       prev = None
+
+       if cursor.rowcount != 2:
+          print("rowcount != 2")
+          return result
+       else:
+          i=0
+          for item in rs:
+             short_link = item[1]
+             if i == 0:
+                newest = item[0]
+             else:
+                prev = item[0]
+             
+             i += 1
+         
+       cursor.close()
+       
+       
+       if newest is None or prev is None:
+          diff = -60
+       else:
+          diff = int((newest - prev).total_seconds())
+       
+       print("")
+       print("Submission author: " + submission.author.name)
+       print("submission name  : " + submission.fullname)
+       print("Submission url   : " + submission.url)
+       print("submission created " + str(datetime.utcfromtimestamp(submission.created_utc)))
+       print("prev val         : " + str(prev))
+       print("newest val       : " + str(newest))
+       print("time since last  : " + str(diff / 60) + " minutes ")
+       print("prev short_link  : " + short_link)
+       print("")
+       
+       result['minutes'] = diff / 60
+       result['prev_short_link'] = short_link
+       
+       return result
+   # check_time_between_submissions
+
+
     def insert_comment(self,comment):
         sql = (
            "INSERT INTO comments (approved_by, archived, author, author_flair_css_class, author_flair_text, "
