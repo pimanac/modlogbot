@@ -104,7 +104,7 @@ class submissionloader(object):
        except Exception,e:
           print(bcolors.FAIL + "Unable to get number of submissions per day"  + bcolors.ENDC)
           print(str(e))
-          sys.exit()
+          #sys.exit()
           return
           
        limit = int(self.subconfig['flood_protection']['max_submissions_per_day'])
@@ -144,9 +144,7 @@ class submissionloader(object):
                submission.add_comment(comment).distinguish()
                #sys.exit()
             except Exception, e:
-               print(bcolors.FAIL + "unable to report submission" + bcolors.ENDC)
                print(str(e))
-               sys.exit()
                return
        else:
             print(bcolors.OKBLUE + "Submission is Ok" + bcolors.ENDC)
@@ -155,8 +153,9 @@ class submissionloader(object):
          # time between posts
          try:
             data = self.db.check_time_between_submissions(submission)
-         except:
+         except Exception,e:
             print(bcolors.FAIL + "Unable to get time between last submission"  + bcolors.ENDC)
+            print(str(e))
             return
          
          limit = int(self.subconfig['flood_protection']['min_wait_between_submissions'])
@@ -192,7 +191,6 @@ class submissionloader(object):
             except Exception, e:
                print(bcolors.FAIL + "unable to report submission" + bcolors.ENDC)
                print(str(e))
-               #sys.exit()
                return
          else:
             print(bcolors.OKBLUE + "Submission is Ok" + bcolors.ENDC)
