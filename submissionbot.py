@@ -7,6 +7,7 @@ import json
 import mysql.connector
 from prawoauth2 import PrawOAuth2Mini as pmini
 from database import database
+from time import sleep
 import time
 import yaml
 
