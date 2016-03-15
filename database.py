@@ -46,15 +46,22 @@ class database():
        #   mod approved       OR     sitting in the queue
        # approved is not null OR (flair is empty AND approved_by IS NULL)
        sql = (
-        "SELECT title,short_link FROM submissions_past_24hours WHERE author = %s AND fullname != %s AND ("
+        "SELECT title,short_link FROM submissions WHERE created_utc <= %s AND created_utc >= DATE_SUB(%s,INTERVAL 24 HOUR) AND author = %s AND fullname != %s AND ("
         "       approved_by IS NOT NULL OR ((link_flair_text IS NULL OR link_flair_text = '') AND "
         "       approved_by IS NULL)"
         ") ORDER BY created_utc DESC"
        )
        
-       data = ( submission.author.name,submission.fullname )
+       data = ( datetime.utcfromtimestamp(submission.created_utc).strftime("%Y-%m-%d %H:%M:%S"), 
+                datetime.utcfromtimestamp(submission.created_utc).strftime("%Y-%m-%d %H:%M:%S"), 
+                submission.author.name,
+                submission.fullname
+              )
+       
+       
        cursor = self.db.cursor()
        cursor.execute(sql,data)
+       
        rs = cursor.fetchall()
        if cursor.rowcount > 0:
           i = 1
