@@ -71,56 +71,65 @@ class bot(object):
          internal = "HOUR"
       # if regex is not none
 
-      db = mysql.connector.connect(user=self.config['database']['user'],
-                           password=self.config['database']['password'],
-                           database=self.config['database']['dbname'])
+      try:
+         db = mysql.connector.connect(user=self.config['database']['user'],
+                              password=self.config['database']['password'],
+                              database=self.config['database']['dbname'])
 
-      cursor = db.cursor()
-
-
-      query = ("SELECT moderator, count(*) AS cnt FROM `modlog` WHERE created >= DATE_SUB(NOW(), INTERVAL %s " + interval + ") GROUP BY moderator ORDER BY cnt DESC;")
-
-      cursor.execute(query,(val, ))
-      rs = cursor.fetchall()
-
-      # build the message record
-      data = {}
-      data['token'] = self.config['slack']['webhook_token']
-      data['channel'] = self.config['slack']['channel']
-      data['attachments'] = []
-      text = '*Modlog for the past ' + str(val) + ' ' + interval.lower() + '(s)*'
+         cursor = db.cursor()
 
 
-      if cursor.rowcount == 0:
-         attachment = {}
-         attachment['fallback'] = '*Modlog for the past ' + str(val) + ' ' + interval.lower() + '(s)*'
-         attachment['color'] = 'good'
-         attachment['text'] = 'There are no actions in the modlog for this item.'
-         data['attachments'].append(attachment)
-      else:
-         text += '```'
-         for item in rs:
-            moderator = item[0]
-            cnt = str(item[1])
+         query = ("SELECT moderator, count(*) AS cnt FROM `modlog` WHERE created >= DATE_SUB(NOW(), INTERVAL %s " + interval + ") GROUP BY moderator ORDER BY cnt DESC;")
 
-            # ping not, for it is annoying
-            safename = moderator[0] + "." + moderator[1:] 
+         cursor.execute(query,(val, ))
+         rs = cursor.fetchall()
 
-            if len(safename) < 20:
-               safename = safename + ' '* (20-len(safename))
+         # build the message record
+         data = {}
+         data['token'] = self.config['slack']['webhook_token']
+         data['channel'] = self.config['slack']['channel']
+         data['attachments'] = []
+         text = '*Modlog for the past ' + str(val) + ' ' + interval.lower() + '(s)*'
 
-            if len(cnt) < 18:
-               cnt = cnt + ' '*(18-len(cnt))
 
-            text += safename + ': ' + cnt + '\n'
-         # for
-         text += '```'
+         if cursor.rowcount == 0:
+            attachment = {}
+            attachment['fallback'] = '*Modlog for the past ' + str(val) + ' ' + interval.lower() + '(s)*'
+            attachment['color'] = 'good'
+            attachment['text'] = 'There are no actions in the modlog for this item.'
+            data['attachments'].append(attachment)
+         else:
+            text += '```'
+            for item in rs:
+               moderator = item[0]
+               cnt = str(item[1])
 
-         data['text'] = text
-      # if
+               # ping not, for it is annoying
+               safename = moderator[0] + "." + moderator[1:] 
 
-      cursor.close()
-      db.close()
+               if len(safename) < 20:
+                  safename = safename + ' '* (20-len(safename))
+
+               if len(cnt) < 18:
+                  cnt = cnt + ' '*(18-len(cnt))
+
+               text += safename + ': ' + cnt + '\n'
+            # for
+            text += '```'
+
+            data['text'] = text
+         # if
+
+         cursor.close()
+         db.close()
+      except Exception as e:
+          data = {}
+          data['token'] = self.config['slack']['webhook_token']
+          data['channel'] = self.config['slack']['channel']
+          data['attachments'] = []
+          data['text'] = "That didn't work.  try ~help"
+
+
       return data
    # get_modlog()
 
