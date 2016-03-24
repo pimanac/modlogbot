@@ -4,6 +4,7 @@ import collections
 import praw
 import json
 import mysql.connector
+import time
 from prawoauth2 import PrawOAuth2Mini as pmini
 from database import database
 
