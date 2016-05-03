@@ -512,6 +512,8 @@ class bot(object):
 
          if not data:
             continue
+         elif 'type' not in data[0]:
+            continue
          elif data[0]['type'] != 'message':
             continue
          elif 'text' not in data[0]:
@@ -544,7 +546,11 @@ class bot(object):
             interval = args[1]
             message = self.get_modlog(interval)
          elif '~domain' in args[0]:
-            domain = args[1]
+            domain = ''
+            try:
+               domain = args[1]
+            except:
+                pass
             message = self.get_domain(domain)
          elif '~help' in args[0]:
             message = self.get_help()
