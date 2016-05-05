@@ -580,11 +580,13 @@ class bot(object):
                   pass
                   
             # put them together and what have you got?
-            message = self.get_userstats(username,doAll)
-            stats = message['text']
-            log = self.get_userlog(username,doAll)['text']
-            
-            message['text'] += '\n\n' + log
+            try:
+               message = self.get_userstats(username,doAll)
+               stats = message['text']
+               log = self.get_userlog(username,doAll)['text']
+               message['text'] += '\n\n' + log
+            except:
+               message = ''
 
          if message != '':
             try:
