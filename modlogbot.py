@@ -34,6 +34,66 @@ class bot(object):
          print("connected")
       except:
          print("didn't connect to slack")
+         
+   def get_bots(self):
+
+      # build the message record
+      data = {}
+      data['token'] = self.config['slack']['webhook_token']
+      data['channel'] = self.config['slack']['channel']
+      data['attachments'] = []
+      
+      text = '*Status of pim bots*\n'
+
+       
+      pids = [pid for pid in os.listdir('/proc') if pid.isdigit()]
+      
+      modlogbot = 'Running'
+      datebot = 'NOT RUNNING'
+      submissionLoader = 'NOT RUNNING'
+      backsubmissionLoader = 'NOT RUNNING'
+      floodBot = 'NOT RUNNING'
+      logloader = 'NOT RUNNING'
+
+      for pid in pids:
+         try:
+            with open(os.path.join('/proc', pid, 'cmdline'), 'r') as f:
+               cmd = f.read()
+               f.close()
+            
+            if 'logloader.py' in cmd:
+               logloader = 'Running'
+               
+            if 'submissionloader.py' in cmd:
+               submissionLoader = 'Running'
+            
+            if 'datebot.py' in cmd:
+               datebot = 'Running'
+               
+            if 'backsumbissionloader.py' in cmd:
+               backsubmissionLoader = 'Running'
+               
+            if 'submissionbot.py' in cmd:
+               floodBot = 'Running'
+               
+         except IOError: # proc has already terminated
+            continue
+            
+               
+      text += '```'   
+      text += 'Modlogbot              :       ' + modlogbot + '\n'
+      text += 'Datebot                :         ' + datebot + '\n'
+      text += 'floodBot               :         ' + floodBot + '\n'
+      text += 'load loader            :         ' + logloader + '\n'
+      text += 'Submission Loader      :       ' + submissionLoader + '\n'
+      text += 'Back Submission Loader :       ' + backsubmissionLoader + '\n'
+      
+      text += '```'
+   
+      data['text'] = text
+
+      return data
+   # get_userstats()
 
    def get_modlog(self,interval):
       # did they specify an interval?
@@ -561,6 +621,8 @@ class bot(object):
             except:
                 pass
             message = self.get_domain(domain)
+         elif '~bots' in args[0]:
+            message = self.get_bots()
          elif '~help' in args[0]:
             message = self.get_help()
          else:
