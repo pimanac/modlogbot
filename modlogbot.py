@@ -105,10 +105,10 @@ class bot(object):
                cnt = str(item[1])
 
                # ping not, for it is annoying
-               safename = moderator[0] + "." + moderator[1:] 
+               safename = moderator[:-1] + "." + moderator[-1] 
 
-               if len(safename) < 20:
-                  safename = safename + ' '* (20-len(safename))
+               if len(safename) < 21:
+                  safename = safename + ' '* (21-len(safename))
 
                if len(cnt) < 18:
                   cnt = cnt + ' '*(18-len(cnt))
@@ -186,7 +186,9 @@ class bot(object):
       data['channel'] = self.config['slack']['channel']
       data['text'] = '*User report for ' + user + '* (6 Month / last 10)\n' + actionlist
       data['attachments'] = []
-
+      text = '*User log for ' + user + '* (6 Month / last 10)\n'
+      
+      text += '```'
       if cursor.rowcount == 0:
          attachment = {}
          attachment['fallback'] = 'This user has no actionable items in the modlog.'
@@ -199,20 +201,22 @@ class bot(object):
             moderator = item[1]
 
             # ping not, for it is annoying
-            safename = moderator[0] + "." + moderator[1:] 
+            safename = moderator[:-1] + "." + moderator[-1] 
 
             # a futile attempt at making columns.  fix later
             if len(action) < 20:
                action = action + ' '*(20-len(action))
-
-            if len(safename) < 20:
-               safename =  safename + ' '*(20-len(safename))
+            
+            if len(safename) < 21:
+               safename =  safename + ' '*(21-len(safename))
 
             link = ''
             if len(item[2]) > 0:
                link = self.config['reddit']['root'] + item[2]
 
             created = item[3].strftime ("%Y-%m-%d %H:%M")
+            
+            text += action + ' : ' + safename + ' : ' + created +'\n'
 
             if "approve" in action:
                color = 'good'
@@ -224,6 +228,7 @@ class bot(object):
                color = '#439FE0'
             # if
 
+            '''
             attachment = {}
             attachment['fallback'] = 'user has actions'
             attachment['color'] = color
@@ -239,7 +244,10 @@ class bot(object):
             attachment['fields'].append(field)
 
             data['attachments'].append(attachment)
+            '''
          # for
+         text += "```"
+         data['text'] = text
       # end if
       cursor.close()
       db.close()
@@ -264,7 +272,8 @@ class bot(object):
       data = {}
       data['token'] = self.config['slack']['webhook_token']
       data['channel'] = self.config['slack']['channel']
-
+      data['attachments'] = []
+      
       text = '*User stats for ' + user + '* (6 Months)\n'
 
       if cursor.rowcount == 0:
@@ -520,11 +529,10 @@ class bot(object):
             continue
          elif data[0]['text'] == '':
             continue
-         elif data[0]['text'][0] != '~':
+         elif data[0]['text'][0] != '~' and data[0]['channel'] != self.config['slack']['channel_userlog']:
             continue
 
          chan = data[0]['channel']
-
          args = str(data[0]['text']).split(' ')
          doAll = False
          if len(args) >= 2:
@@ -532,11 +540,12 @@ class bot(object):
             print('Command: ' + args[0])
             print('Args[1]  ' + args[1])
 
-         if '~userlog' in args[0]:
-            message = self.get_userlog(username,doAll)
-         elif '~userstats' in args[0]:
-            username = args[1]
+         if '~userlog' in args[0] or '~userstats' in args[0]:
             message = self.get_userstats(username,doAll)
+            stats = message['text']
+            log = self.get_userlog(username,doAll)['text']
+            
+            message['text'] += '\n\n' + log
          elif '~top' in args[0]:
             message = self.get_top()
          elif '~xactions' in args[0]:
@@ -556,6 +565,26 @@ class bot(object):
             message = self.get_help()
          else:
             message = '';
+            
+            
+         # special userlog channel stuff 
+         if chan == self.config['slack']['channel_userlog']:
+            username = data[0]['text']
+            
+            # are we a url maybe?
+            if "/" in username:
+               try:
+                  parts = username.split('/')
+                  username = parts[-1].replace('>','')
+               except:
+                  pass
+                  
+            # put them together and what have you got?
+            message = self.get_userstats(username,doAll)
+            stats = message['text']
+            log = self.get_userlog(username,doAll)['text']
+            
+            message['text'] += '\n\n' + log
 
          if message != '':
             try:
