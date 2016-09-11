@@ -322,11 +322,11 @@ class database():
         sql = (
            "INSERT INTO submissions (approved_by, archived, author, author_flair_css_class, "
            "                         author_flair_text, banned_by, clicked, created, created_utc, distinguished, "
-           "                         domain, downs, edited, rfrom, from_id, from_kind, fullname, gilded, has_fetched, "
+           "                         domain, downs, edited, rfrom, fullname, gilded, has_fetched, "
            "                         hidden, hide_score, id, is_self, likes, link_flair_css_class, link_flair_text, "
            "                         locked, name, over_18, permalink, post_hint, quarantine, removal_reason, "
            "                         saved, score, selftext, selftext_html, short_link, stickied, subreddit, "
-           "                         subreddit_id, title, ups, url) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, "
+           "                         subreddit_id, title, ups, url) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, "
            "                         %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, "
            "                         %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON DUPLICATE KEY UPDATE "
            "                         approved_by = %s ,author_flair_css_class = %s ,author_flair_text = %s, banned_by = %s, "
@@ -363,8 +363,6 @@ class database():
         downs = submission.downs
         edited = submission.edited
         rfrom = ""
-        from_id = submission.from_id
-        from_kind = "" # submission.from_kind
         fullanme = submission.fullname
         gilded = submission.gilded
         has_feteched = True
@@ -409,8 +407,6 @@ class database():
             downs,
             edited,
             rfrom,
-            from_id,
-            from_kind,
             fullanme,
             gilded,
             has_feteched,
