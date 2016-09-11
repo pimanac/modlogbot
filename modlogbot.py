@@ -54,6 +54,7 @@ class bot(object):
       backsubmissionLoader = 'NOT RUNNING'
       floodBot = 'NOT RUNNING'
       logloader = 'NOT RUNNING'
+      titleBot = 'NOT RUNNING'
 
       for pid in pids:
          try:
@@ -75,6 +76,9 @@ class bot(object):
                
             if 'submissionbot.py' in cmd:
                floodBot = 'Running'
+
+            if 'PoliticsBot.exe' in cmd:
+               titleBot = 'Running'
                
          except IOError: # proc has already terminated
             continue
@@ -82,12 +86,12 @@ class bot(object):
                
       text += '```'   
       text += 'Modlogbot              :       ' + modlogbot + '\n'
-      text += 'Datebot                :         ' + datebot + '\n'
-      text += 'floodBot               :         ' + floodBot + '\n'
-      text += 'load loader            :         ' + logloader + '\n'
+      text += 'Datebot                :       ' + datebot + '\n'
+      text += 'floodBot               :       ' + floodBot + '\n'
+      text += 'load loader            :       ' + logloader + '\n'
       text += 'Submission Loader      :       ' + submissionLoader + '\n'
       text += 'Back Submission Loader :       ' + backsubmissionLoader + '\n'
-      
+      text += 'title bot              :       ' + titleBot + '\n' 
       text += '```'
    
       data['text'] = text
@@ -333,7 +337,7 @@ class bot(object):
       data['token'] = self.config['slack']['webhook_token']
       data['channel'] = self.config['slack']['channel']
       data['attachments'] = []
-      
+      data['text'] = ''   
       text = '*User stats for ' + user + '* (6 Months)\n'
 
       if cursor.rowcount == 0:
@@ -490,7 +494,7 @@ class bot(object):
       text += '~userlog username    : show mod log history for this user\n\n'
       text += '~userstats username  : show number of actions in the past 6 months\n\n'
       text += '                       includes all actions\n\n'
-      text += '~top                 : show people with over 50 actions in 6 months\n\n'
+   #   text += '~top                 : show people with over 50 actions in 6 months\n\n'
 
       text += '```'
 
@@ -577,8 +581,9 @@ class bot(object):
 
    def run(self):
       while True:
+         time.sleep(0.1)
          data = self.slack.rtm_read()
-
+         
          if not data:
             continue
          elif 'type' not in data[0]:
@@ -592,9 +597,11 @@ class bot(object):
          elif data[0]['text'][0] != '~' and data[0]['channel'] != self.config['slack']['channel_userlog']:
             continue
 
+         print("595")
          chan = data[0]['channel']
          args = str(data[0]['text']).split(' ')
          doAll = False
+         
          if len(args) >= 2:
             username = args[1]
             print('Command: ' + args[0])
@@ -602,12 +609,24 @@ class bot(object):
 
          if '~userlog' in args[0] or '~userstats' in args[0]:
             message = self.get_userstats(username,doAll)
-            stats = message['text']
-            log = self.get_userlog(username,doAll)['text']
             
+            if 'text' not in message:
+                message
+            if 'text' in message:
+                stats = message['text']
+            else:
+                stats = 'No user named this?'
+
+            log = self.get_userlog(username,doAll)
+
+            if 'text' in log:
+                log = log['text']
+            else:
+                log = 'y u no pick real user?'
+
             message['text'] += '\n\n' + log
          elif '~top' in args[0]:
-            message = self.get_top()
+            continue# message = self.get_top()
          elif '~xactions' in args[0]:
             link = args[1]
             message = self.get_actions(link)
@@ -662,7 +681,7 @@ class bot(object):
                print("There was a problem sending the slack message")
                time.sleep(5)
                pass
-
+         
    # run()
 
 

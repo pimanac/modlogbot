@@ -364,7 +364,7 @@ class database():
         edited = submission.edited
         rfrom = ""
         from_id = submission.from_id
-        from_kind = submission.from_kind
+        from_kind = "" # submission.from_kind
         fullanme = submission.fullname
         gilded = submission.gilded
         has_feteched = True
