@@ -4,9 +4,10 @@ import collections
 import praw
 import json
 import mysql.connector
-import time
+
 from prawoauth2 import PrawOAuth2Mini as pmini
 from database import database
+from time import sleep
 
 from pprint import pprint
 import inspect
@@ -44,15 +45,18 @@ class submissionloader(object):
 
 # entry
 if __name__ == "__main__":
-   me = submissionloader()
-   me.reddit_connect()
+    me = submissionloader()
+    me.reddit_connect()
 
-   while True:
-      try:
-         print("Getting live submission stream")
-         me.load_submissions_live()
-      except:
-         print("error.  Sleeping 60 seconds.")
-         time.sleep(60)
+    while True:
 
-   print("Exiting")
+        print("Getting live submission stream")
+        try:
+           me.load_submissions_live()
+        except Exception as e:
+
+            print(str(e))
+            print("Error - sleeping 60 seconds")
+            sleep(60)
+
+    print("Exiting")
