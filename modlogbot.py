@@ -55,6 +55,7 @@ class bot(object):
       floodBot = 'NOT RUNNING'
       logloader = 'NOT RUNNING'
       titleBot = 'NOT RUNNING'
+      headsUpBot = 'NOT RUNNING'
 
       for pid in pids:
          try:
@@ -79,7 +80,11 @@ class bot(object):
 
             if 'PoliticsBot.exe' in cmd:
                titleBot = 'Running'
-               
+            
+            if 'HeadsUpBot.exe' in cmd:
+               headsUpBot = 'Running'
+
+
          except IOError: # proc has already terminated
             continue
             
@@ -92,6 +97,7 @@ class bot(object):
       text += 'Submission Loader      :       ' + submissionLoader + '\n'
       text += 'Back Submission Loader :       ' + backsubmissionLoader + '\n'
       text += 'title bot              :       ' + titleBot + '\n' 
+      text += 'heads up bot           :       ' + headsUpBot + '\n'
       text += '```'
    
       data['text'] = text
