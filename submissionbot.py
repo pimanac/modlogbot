@@ -132,7 +132,7 @@ class submissionloader(object):
                stuff = "You have already submitted " + str(limit) + " articles within the last 24 hours. These links are:\r\n\r\n"
                # because we dont want to include this post itself.
                for i in range(0,limit):
-                  stuff += "* [" + data['titles'][i] + "](" + data['links'][i] + ")\r\n\r\n"
+                  stuff += "> * [" + data['titles'][i] + "](" + data['links'][i] + ")\r\n\r\n"
                
                comment = comment.replace('[AUTHOR]',submission.author.name)
                comment = comment.replace('[LINKLIST]',stuff)
@@ -204,6 +204,11 @@ if __name__ == "__main__":
    doit = True
    while doit:
       me.wiki_config()
-      me.load_submissions_live()
+      try:
+         me.load_submissions_live()
+      except:
+         print("something screwed up.")
+      
+      print("sleeping")
       sleep(60*5)
    print("Exiting")
