@@ -47,11 +47,21 @@ class logloader(object):
         for x in self.subreddit.get_mod_log(limit=int(self.config['reddit']['max_requests'])):
             if x is not None:
                 result = db.insert_modlog(x)
-                type = x.target_fullname.split('_')[0]
-                id = x.target_fullname.split('_')[1]
+
+
+                if not hasattr(x,'target_fullname'):
+                    return
                 
-                if type == 't3':
-                   db.insert_submission(self.get_submission(id))
+                try:
+                   type = x.target_fullname.split('_')[0]
+                   id = x.target_fullname.split('_')[1]
+                
+                   if type == 't3':
+                      db.insert_submission(self.get_submission(id))
+                except Exception as e:
+                    print(str(e))
+                    print("couldn't extract type")
+
 
                 if result == False:
                     i += 1
@@ -69,8 +79,12 @@ if __name__ == "__main__":
     me.reddit_connect()
     
     while True:
-        print("Getting modlog")
-        me.get_modlog()
+        try:
+           print("Getting modlog")
+           me.get_modlog()
+        except:
+           print("error getting modlog")
+
         print("Sleeping...")
         time.sleep(int(config['reddit']['sleep_seconds']))
 
