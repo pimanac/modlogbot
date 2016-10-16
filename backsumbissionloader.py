@@ -10,6 +10,7 @@ from datetime import datetime
 
 from pprint import pprint
 import inspect
+from time import sleep
 
 class submissionloader(object):
 
@@ -47,18 +48,21 @@ class submissionloader(object):
         cursor.execute(query)
         rows = cursor.fetchall()
 
+        db = database()
+        db.connect()
         for row in rows:
             link = 'https://www.reddit.com' + row[0]
             # print("getting " + link)
             try:
-               db = database()
-               db.connect()
+
+
                submission = self.r.get_submission(link)
                db.insert_submission(submission)
             except:
 
-               print("error getting submission " + link)
-               raise
+               print("error getting submission - " + link + " - skipping.")
+
+               #raise
                #pass
 
 # entry
@@ -67,10 +71,10 @@ if __name__ == "__main__":
     me.reddit_connect()
 
     while True:
-        print("Getting back submissions")
-        me.load_submissions()
-        print("sleeping")
-        time.sleep(5 * 60)
+       print("Getting back submissions")
+       me.load_submissions()
+       print("sleeping")
+       sleep(60 * 60) # 1 hour
 
 
     print("Exiting")
